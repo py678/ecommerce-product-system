@@ -5,9 +5,9 @@
 
 ## 当前进度
 
-已完成数据库模型、迁移、注册登录、JWT、当前用户接口及 Swagger。商品/分类管理接口和业务页面按项目计划继续开发。
+已完成数据库、注册登录、JWT、商品/分类 CRUD、分页搜索和 Swagger。前端业务页面按项目计划继续开发。
 
-后端启动后访问 [Swagger](http://localhost:3000/docs)，可直接测试认证接口。配置与接口详情见 [API 文档](docs/api.md)，模块说明见 [架构文档](docs/architecture.md)。
+后端启动后访问 [Swagger](http://localhost:3000/docs)，注册登录并授权后即可测试分类、商品管理。配置与接口详情见 [API 文档](docs/api.md)，模块说明见 [架构文档](docs/architecture.md)。
 
 ## 数据库开发
 
