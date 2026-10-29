@@ -1,0 +1,7 @@
+#!/bin/sh
+# Git for Windows includes the shell and grep needed by this hook.
+header=$(head -n 1 "$1")
+if ! printf '%s\n' "$header" | grep -Eq '^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([^()]+\))?!?: .+'; then
+  printf '%s\n' '提交标题必须符合 Conventional Commits，例如 feat(auth): 添加登录功能' >&2
+  exit 1
+fi
