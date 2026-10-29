@@ -1,46 +1,32 @@
-# 考核项目
+﻿# 电商商品管理后台
 
-GitHub 仓库：https://github.com/py678/git1
+技术栈：NestJS、React、TypeScript、Ant Design、Prisma、PostgreSQL。
+仓库：https://github.com/py678/git1
 
-## 版本控制要求
+## 当前进度
 
-- 使用 GitHub 管理代码，默认分支为 `main`。
-- 每个开发日结束前提交并推送当天的有效变更；无变更时不创建空提交。
-- 提交遵循 Conventional Commits，并在正文记录变更原因、主要内容和验证结果。
-- 首次推送成功后，将仓库地址发送给周勇（Leo.Zhou）和黄锐（Bruce.Huang）。
+已清理框架默认示例，建立用户、分类、商品数据库模型及迁移。认证、管理接口和业务页面按项目计划继续开发。
 
-## 首次配置
+## 数据库开发
 
-安装 Git，并使用自己的真实提交身份配置当前仓库：
+在 backend 目录使用 npm.cmd；首次配置、ER 图和约束说明见 [数据库文档](docs/database.md)。真实连接信息只存于被忽略的 backend/.env。
 
 ```powershell
-git config user.name "你的姓名"
-git config user.email "你的邮箱"
-git config core.hooksPath .githooks
-git add README.md .gitignore .githooks
-git commit -m "chore(repo): 初始化项目版本控制规范" -m "建立项目说明、忽略规则和提交信息校验。验证：检查文档与钩子配置。"
-git remote add origin https://github.com/py678/git1.git
-git push -u origin main
+cd backend
+npm.cmd ci
+npm.cmd run db:generate
+npm.cmd run db:validate
+npm.cmd run db:deploy
+npm.cmd run db:verify
+npm.cmd run start:dev
 ```
 
-首次推送前确认远程仓库的现有内容；若已有提交，应先同步历史。通过 Git Credential Manager 或 SSH 完成认证，不要把访问令牌写进项目文件。
+首次拉取需先根据 backend/.env.example 配置独立数据库；本地初始化流程见数据库文档。不要对已有业务库执行 reset。
 
-## 每日提交流程
+## 开发约定
 
-```powershell
-git status
-git diff
-# 运行与本次变更相关的检查，再逐个暂存需要提交的文件。
-git add <文件路径>
-git diff --cached
-git commit -m "feat(scope): 简述本次功能" -m "原因：说明需求。变更：说明实现。验证：记录实际检查及结果。"
-git push
-```
-
-提交标题格式：`type(scope): description`，其中 scope 可省略。允许类型：`feat`、`fix`、`docs`、`style`、`refactor`、`perf`、`test`、`build`、`ci`、`chore`、`revert`。破坏性变更使用 `!`，并在正文中说明 `BREAKING CHANGE:`。
-
-首次推送后发送：
-
-> @周勇(Leo.Zhou) @黄锐(Bruce.Huang) 我的考核项目已完成首次推送，仓库地址：https://github.com/py678/git1 。后续将在每个开发日提交并推送代码，便于查看开发过程。
-
-每日提交需要持续执行；本文档不代表已经配置自动提交或提醒。
+- 每个开发日提交并推送有效变更，使用 Conventional Commits，正文记录原因、变更和验证。
+- 本仓库配置 .githooks/commit-msg；新克隆后执行 git config core.hooksPath .githooks。
+- 首次成功推送后向周勇（Leo.Zhou）和黄锐（Bruce.Huang）发送仓库地址。
+- 密码、令牌、node_modules、生成代码、构建产物和安装包不提交。
+- 执行约定见 AGENTS.md 与 .cursor/rules/project.mdc；后续安排见项目计划.md。

@@ -1,0 +1,12 @@
+---
+description: 电商后台项目实现与交付规范
+alwaysApply: true
+---
+
+- 以根目录 AGENTS.md 和考核需求为准，全栈 TypeScript。
+- 后端 NestJS、Prisma、PostgreSQL；迁移入库，禁止擅自 reset 或删除已有业务数据。
+- BCrypt 存储密码，JWT 保护敏感接口，校验输入并检查商品归属。
+- 前端 React、Ant Design、React Router、Axios，提供表单校验和操作反馈。
+- 遵循 Conventional Commits，提交前检查构建、lint 与相关测试。
+- 密码、令牌、安装包、依赖目录、生成代码和构建产物不提交。
+- 配套维护 Swagger、数据库设计、启动与部署文档，如实记录验证状态。

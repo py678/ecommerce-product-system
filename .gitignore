@@ -17,3 +17,10 @@ Thumbs.db
 
 # 本地环境安装包
 tools/installers/
+
+# 依赖、构建产物与覆盖率
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+backend/src/generated/
