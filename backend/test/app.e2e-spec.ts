@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
-import { AppModule } from './../src/app.module.js';
-import { DatabaseService } from './../src/database/database.service.js';
+import { AppModule } from './../dist/app.module.js';
+import { DatabaseService } from './../dist/database/database.service.js';
 
 describe('Application bootstrap (e2e, requires migrated database)', () => {
   let app: INestApplication;

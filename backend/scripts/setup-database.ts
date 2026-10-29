@@ -31,7 +31,7 @@ try {
   );
   writeFileSync(
     '.env',
-    `DATABASE_URL="postgresql://silk_shop_app:${password}@localhost:5432/silk_shop?schema=public"\nSHADOW_DATABASE_URL="postgresql://silk_shop_app:${password}@localhost:5432/silk_shop_shadow?schema=public"\nPORT=3000\n`,
+    `DATABASE_URL="postgresql://silk_shop_app:${password}@localhost:5432/silk_shop?schema=public"\nSHADOW_DATABASE_URL="postgresql://silk_shop_app:${password}@localhost:5432/silk_shop_shadow?schema=public"\nPORT=3000\nJWT_SECRET="${randomBytes(32).toString('hex')}"\nJWT_EXPIRES_IN_SECONDS=3600\nFRONTEND_ORIGIN="http://localhost:5173"\n`,
     { flag: 'wx', mode: 0o600 },
   );
   await admin.query('CREATE DATABASE silk_shop OWNER silk_shop_app');
