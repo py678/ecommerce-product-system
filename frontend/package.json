@@ -6,20 +6,32 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "lint": "oxlint",
+    "lint": "eslint .",
+    "format": "prettier --write src/ e2e/ vite.config.ts playwright.config.ts eslint.config.mjs",
+    "format:check": "prettier --check src/ e2e/ vite.config.ts playwright.config.ts eslint.config.mjs",
+    "test:e2e": "playwright test",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@ant-design/icons": "6.3.4",
+    "antd": "6.6.8",
+    "axios": "1.21.0",
     "react": "^19.3.1",
-    "react-dom": "^19.3.1"
+    "react-dom": "^19.3.1",
+    "react-router-dom": "7.18.5"
   },
   "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@playwright/test": "1.64.1",
     "@types/node": "^24.19.2",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
-    "oxlint": "^1.89.0",
-    "typescript": "~7.0.2",
+    "eslint": "10.13.0",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "prettier": "3.9.10",
+    "typescript": "6.0.2",
+    "typescript-eslint": "8.72.1",
     "vite": "^8.3.5"
   }
 }
