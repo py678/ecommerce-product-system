@@ -1,0 +1,67 @@
+name: silk-shop
+services:
+  db:
+    image: postgres:18-bookworm
+    environment:
+      POSTGRES_DB: silk_shop
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run node scripts/setup-compose.ts first}
+      APP_PASSWORD: ${APP_PASSWORD:?Run node scripts/setup-compose.ts first}
+    volumes:
+      - postgres_data:/var/lib/postgresql
+      - ./docker/init-db.sh:/docker-entrypoint-initdb.d/10-app-user.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U postgres -d silk_shop"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  migrate:
+    build:
+      context: ./backend
+      target: migrate
+    environment:
+      DATABASE_URL: postgresql://silk_shop_app:${APP_PASSWORD:?Missing APP_PASSWORD}@db:5432/silk_shop?schema=public
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  backend:
+    build:
+      context: ./backend
+      target: runtime
+    environment:
+      DATABASE_URL: postgresql://silk_shop_app:${APP_PASSWORD:?Missing APP_PASSWORD}@db:5432/silk_shop?schema=public
+      JWT_SECRET: ${JWT_SECRET:?Missing JWT_SECRET}
+      JWT_EXPIRES_IN_SECONDS: 3600
+      FRONTEND_ORIGIN: http://localhost:${WEB_PORT:-8088}
+      PORT: 3000
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/docs-json').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "127.0.0.1:${WEB_PORT:-8088}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

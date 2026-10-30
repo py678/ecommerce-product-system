@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { DatabaseService } from '../../backend/dist/database/database.service.js';
@@ -18,6 +20,10 @@ const password = 'Ui-test-password-123!';
 const ownerName = `${prefix}_owner`;
 const otherName = `${prefix}_other`;
 const fixtureProduct = `${prefix}_shared_product`;
+const compose = process.env.E2E_COMPOSE === '1';
+const apiBase = compose
+  ? `${process.env.E2E_BASE_URL ?? 'http://127.0.0.1:8088'}/api`
+  : 'http://127.0.0.1:3002/api';
 let database: DatabaseService;
 
 async function login(page: Page, username = ownerName) {
@@ -31,27 +37,26 @@ async function login(page: Page, username = ownerName) {
 }
 
 test.beforeAll(async ({ request }) => {
-  database = new DatabaseService();
-  await database.$connect();
+  if (!compose) {
+    database = new DatabaseService();
+    await database.$connect();
+  }
   let ownerToken = '';
   for (const username of [ownerName, otherName]) {
-    const response = await request.post(
-      'http://127.0.0.1:3002/api/auth/register',
-      {
-        data: { username, email: `${username}@example.invalid`, password },
-      },
-    );
+    const response = await request.post(`${apiBase}/auth/register`, {
+      data: { username, email: `${username}@example.invalid`, password },
+    });
     expect(response.status()).toBe(201);
     const body = await response.json();
     if (username === ownerName) ownerToken = body.accessToken;
   }
   const headers = { Authorization: `Bearer ${ownerToken}` };
-  const category = await request.post('http://127.0.0.1:3002/api/categories', {
+  const category = await request.post(`${apiBase}/categories`, {
     headers,
     data: { name: `${prefix}_shared` },
   });
   expect(category.status()).toBe(201);
-  const result = await request.post('http://127.0.0.1:3002/api/products', {
+  const result = await request.post(`${apiBase}/products`, {
     headers,
     data: {
       name: fixtureProduct,
@@ -64,6 +69,26 @@ test.beforeAll(async ({ request }) => {
 });
 
 test.afterAll(async () => {
+  if (compose) {
+    await promisify(execFile)(
+      process.env.DOCKER_EXECUTABLE ?? 'docker',
+      [
+        'compose',
+        'run',
+        '--rm',
+        '--no-deps',
+        'migrate',
+        'node',
+        'scripts/cleanup-browser-fixtures.ts',
+        prefix,
+      ],
+      {
+        cwd: fileURLToPath(new URL('../../', import.meta.url)),
+        timeout: 60000,
+      },
+    );
+    return;
+  }
   if (!database) return;
   try {
     const users = await database.user.findMany({

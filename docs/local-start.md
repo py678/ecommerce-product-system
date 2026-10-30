@@ -45,4 +45,4 @@ npm.cmd run dev
 
 前端 `npm.cmd run build` 生成 `frontend/dist` 静态文件。生产 Web 服务需将 `/api` 代理至后端，并对前端页面路由回退到 `index.html`；Vite 开发代理不会随静态文件发布。后端构建后使用 `npm.cmd run start:prod`，部署前执行迁移并注入数据库及 JWT 环境变量。生产访问应启用 HTTPS。
 
-当前未实现服务端登出撤销或刷新令牌；退出仅删除浏览器令牌。Docker 联合启动、干净 checkout 安装和完整部署验收属于 M6，尚未验证完成，本指南不代表容器交付已通过。
+当前未实现服务端登出撤销或刷新令牌；退出仅删除浏览器令牌。容器配置、启动顺序、回归命令和故障排查见 [Docker 部署指南](deployment.md)。实际验收结果以项目计划中的验证记录为准。

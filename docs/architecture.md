@@ -24,7 +24,7 @@ flowchart LR
 
 真实密码和密钥只存在本地 `.env`。用户查询显式选择公开字段；JWT 只包含用户标识、签发时间、有效期及系统标识。默认请求限流使用单进程内存，不适用于共享多实例计数。
 
-商品与分类控制器统一使用 JWT Guard。商品金额从 API 输入到输出都使用字符串，由 Prisma Decimal 和 PostgreSQL numeric 保存；列表及计数在同一 Repeatable Read 快照读取。容器部署与交付回归在后续阶段补齐。
+商品与分类控制器统一使用 JWT Guard。商品金额从 API 输入到输出都使用字符串，由 Prisma Decimal 和 PostgreSQL numeric 保存；列表及计数在同一 Repeatable Read 快照读取。
 
 ## 前端结构
 
@@ -36,3 +36,9 @@ flowchart LR
 - `layouts/`：桌面侧栏与移动端导航；`e2e/`：真实浏览器及真实后端的操作验证。
 
 前端路由保护改善访问体验，数据权限由后端 JWT Guard 和归属检查保证。令牌保存在当前浏览器标签页的 sessionStorage；关闭标签页或退出会清除本地会话。生产环境应使用 HTTPS、同源 `/api` 反向代理和 SPA 路由回退。
+
+## 容器结构
+
+Compose 管理 PostgreSQL、一次性迁移、NestJS 与 Nginx 前端四个服务。数据库健康后先运行迁移，迁移成功才启动 API，API 健康后启动前端入口。数据库数据保存于独立命名卷，应用以普通数据库账号连接；后端运行镜像只保留生产依赖，并以 node 用户启动。
+
+多阶段构建通过 npm ci 安装 Linux 依赖和生成 Prisma 客户端，宿主机依赖、构建产物和环境凭据通过 .dockerignore 排除。Nginx 提供 SPA 路由回退，并在容器网络中代理 API 和 Swagger；宿主机只暴露本地 8088 入口。配置与维护见 [部署指南](deployment.md)。
