@@ -19,7 +19,7 @@
 | 本地完整功能测试 | 已完成 | 79 项 HTTP 测试、2 项数据库验证、3 组 Edge 浏览器流程；独立干净检出启动与重启持久化验证 |
 | 架构/API/数据库/部署文档 | 已完成 | [架构](architecture.md)、[API](api.md)、[数据库](database.md)、[启动](local-start.md)、[部署](deployment.md) |
 | 答辩演示 | 待本人完成 | 自行准备功能演示并练习关键代码讲解 |
-| 首次推送后通知周勇、黄锐 | 待本人确认 | 仓库地址 https://github.com/py678/git1；未将通知状态标记完成 |
+| 首次推送后通知周勇、黄锐 | 待本人确认 | 仓库地址 https://github.com/py678/ecommerce-product-system；未将通知状态标记完成 |
 
 分类树、Cypress、Turbo、在线部署均为可选项，本项目未实现；已使用 Playwright/Edge 验证浏览器操作。原需求截止日期为 2025-12-16，实际考核安排需向导师确认，不能据此声称按原截止时间完成。
 
@@ -41,7 +41,7 @@
 从 GitHub 克隆 `main`，核对 HEAD 为 `a0ebc16`、工作区为空；不复制现有 `.env`、node_modules、dist 或数据库。执行初始化脚本生成新凭据，用 `silk-shop-acceptance` 项目名、8090 端口及全新数据卷启动：
 
 ```powershell
-git clone https://github.com/py678/git1.git silk-shop-acceptance
+git clone https://github.com/py678/ecommerce-product-system.git silk-shop-acceptance
 cd silk-shop-acceptance
 node scripts/setup-compose.ts
 $env:WEB_PORT = '8090'
@@ -74,4 +74,4 @@ docker compose -p silk-shop-acceptance ps -a
 
 可复制的仓库通知文字（尚未代发）：
 
-> 周勇老师、黄锐老师好，我的 Node.js 全栈考核项目仓库是 https://github.com/py678/git1 。目前已实现注册登录、商品/分类管理及 Docker Compose 联合启动，仓库内包含部署与测试文档，后续开发进度会通过 Conventional Commits 提交记录同步，请查阅。
+> 周勇老师、黄锐老师好，我的 Node.js 全栈考核项目仓库是 https://github.com/py678/ecommerce-product-system 。目前已实现注册登录、商品/分类管理及 Docker Compose 联合启动，仓库内包含部署与测试文档，后续开发进度会通过 Conventional Commits 提交记录同步，请查阅。

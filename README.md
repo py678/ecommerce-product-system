@@ -1,7 +1,7 @@
-# 电商商品管理后台
+# ecommerce-product-system — 电商商品管理后台
 
 技术栈：NestJS、React、TypeScript、Ant Design、Prisma、PostgreSQL。
-仓库：https://github.com/py678/git1
+仓库：https://github.com/py678/ecommerce-product-system
 
 ## 当前进度
 

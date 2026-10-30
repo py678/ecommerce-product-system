@@ -14,7 +14,7 @@
 
 - 后端：NestJS + Prisma ORM + PostgreSQL + JWT + Swagger
 - 前端：React + Vite + TypeScript + Ant Design + React Router + Axios
-- 版本控制：Git + GitHub（远程 `https://github.com/py678/git1.git`，默认分支 `main`）
+- 版本控制：Git + GitHub（远程 `https://github.com/py678/ecommerce-product-system.git`，默认分支 `main`）
 
 ## 目录结构
 
