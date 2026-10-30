@@ -16,8 +16,6 @@
 ## 交付材料
 
 - [验收清单与验证记录](docs/acceptance.md)
-- [功能演示步骤](docs/demo.md)
-- [答辩讲解提纲](docs/defense-notes.md)
 - [数据库设计与 ER 图](docs/database.md)
 
 ## 数据库开发
