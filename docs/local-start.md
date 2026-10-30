@@ -4,6 +4,8 @@
 
 使用项目已验证的 Node.js 26、npm 和 PostgreSQL 18。Windows PowerShell 使用 `npm.cmd`，避免脚本执行策略阻止 npm.ps1。首次克隆后在仓库根目录执行 `git config core.hooksPath .githooks`。
 
+在 VS Code 通过“文件 → 打开文件夹”选择项目根目录，再用“终端 → 新建终端”执行下面的命令。React/NestJS 项目通过 npm 脚本启动；工具栏的“运行当前文件”无法直接启动整个项目。若只想使用容器版本，按 [Docker 部署指南](deployment.md) 操作，访问 8088；以下 5173/3000 为本机开发模式。
+
 根据 `backend/.env.example` 配置被 Git 忽略的 `backend/.env`。数据库初始化、专用账号权限与迁移说明见 [数据库文档](database.md)。`DATABASE_URL` 应连接独立项目库；`JWT_SECRET` 使用至少 32 随机字节的密钥，不使用示例密码或提交真实凭据。
 
 ## 启动后端

@@ -13,6 +13,13 @@
 
 后端启动后访问 [Swagger](http://localhost:3000/docs)，注册登录并授权后即可测试分类、商品管理。配置与接口详情见 [API 文档](docs/api.md)，模块说明见 [架构文档](docs/architecture.md)。
 
+## 交付材料
+
+- [验收清单与验证记录](docs/acceptance.md)
+- [功能演示步骤](docs/demo.md)
+- [答辩讲解提纲](docs/defense-notes.md)
+- [数据库设计与 ER 图](docs/database.md)
+
 ## 数据库开发
 
 在 backend 目录使用 npm.cmd；首次配置、ER 图和约束说明见 [数据库文档](docs/database.md)。真实连接信息只存于被忽略的 backend/.env。
