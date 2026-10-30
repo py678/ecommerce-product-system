@@ -42,3 +42,5 @@ flowchart LR
 Compose 管理 PostgreSQL、一次性迁移、NestJS 与 Nginx 前端四个服务。数据库健康后先运行迁移，迁移成功才启动 API，API 健康后启动前端入口。数据库数据保存于独立命名卷，应用以普通数据库账号连接；后端运行镜像只保留生产依赖，并以 node 用户启动。
 
 多阶段构建通过 npm ci 安装 Linux 依赖和生成 Prisma 客户端，宿主机依赖、构建产物和环境凭据通过 .dockerignore 排除。Nginx 提供 SPA 路由回退，并在容器网络中代理 API 和 Swagger；宿主机只暴露本地 8088 入口。配置与维护见 [部署指南](deployment.md)。
+
+可选 `docker-compose.sync.yml` 增加 `db-sync` 常驻进程，通过 `host.docker.internal` 访问本机项目库。两端业务行触发器与写事务共同记录持久事件，进程在目标库事务内比较版本并应用、提交后确认源事件；远端应用不重复捕获。断线自动补传，删除保留版本，约束冲突保留待处理事件。它提供最终一致性，不能替代跨库事务；同一记录并发更新按较新的整行版本处理。详见 [双向同步指南](database-sync.md)。

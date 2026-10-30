@@ -1,0 +1,23 @@
+# Optional bridge to this machine's PostgreSQL. Credentials stay in an ignored file.
+services:
+  db-sync:
+    profiles: [sync]
+    build:
+      context: ./backend
+      target: migrate
+    env_file: .env.sync.local
+    environment:
+      DATABASE_URL: postgresql://silk_shop_app:${APP_PASSWORD:?Missing APP_PASSWORD}@db:5432/silk_shop?schema=public
+    command: [node, scripts/sync-databases.ts]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    healthcheck:
+      test: [CMD, node, -e, "const fs=require('node:fs'); try {process.exit(Date.now()-fs.statSync('/tmp/silk-sync-heartbeat').mtimeMs<15000?0:1)} catch {process.exit(1)}"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+      start_period: 20s
+    volumes:
+      - ./tools/installers/sync-backups:/backups

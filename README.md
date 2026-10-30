@@ -9,7 +9,7 @@
 
 前后端启动后访问 [管理后台](http://localhost:5173)，首次使用自行注册账号。商品可共享查看，仅创建者可修改和删除；分类由所有成员共享维护。本地配置、验证及生产部署注意事项见 [启动指南](docs/local-start.md)。
 
-容器启动：在根目录执行 `node scripts/setup-compose.ts`、`docker compose up -d --build`，访问 http://localhost:8088。需要已运行的 Docker Linux 引擎；完整步骤与数据维护见 [Docker 部署指南](docs/deployment.md)。容器数据库与本机开发数据库独立。
+容器启动：在根目录执行 `node scripts/setup-compose.ts`、`docker compose up -d --build`，访问 http://localhost:8088。需要已运行的 Docker Linux 引擎；完整步骤与数据维护见 [Docker 部署指南](docs/deployment.md)。默认两套数据库独立；可按 [双向同步指南](docs/database-sync.md) 启用同步，让本机 Prisma Studio 与 8088 后台共享业务数据。
 
 后端启动后访问 [Swagger](http://localhost:3000/docs)，注册登录并授权后即可测试分类、商品管理。配置与接口详情见 [API 文档](docs/api.md)，模块说明见 [架构文档](docs/architecture.md)。
 

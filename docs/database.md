@@ -45,7 +45,7 @@ erDiagram
 - 用户名、邮箱、商品名、分类名不能只包含普通空格。非负值及非空白 CHECK 约束通过迁移 SQL 管理，Prisma schema 不表达这些 CHECK；后续迁移需保留。
 - 用户或分类被商品引用时使用 `RESTRICT` 禁止删除；先调整/删除关联商品。
 - 商品建立创建时间索引、用户+创建时间索引和分类+创建时间索引，支持分页列表。
-- `updated_at` 由 Prisma `@updatedAt` 在更新时维护；直接写 SQL 时应自行更新，不使用触发器。
+- `updated_at` 由 Prisma `@updatedAt` 在更新时维护；直接写 SQL 时应自行更新。同步触发器单独记录事件时间，不代替维护业务 `updated_at`。
 
 ## 配置与迁移
 
@@ -65,6 +65,12 @@ npm.cmd run start:dev
 新增模型变更使用 `npm.cmd run db:migrate -- --name change_description`，在开发库生成迁移。初始化脚本同时创建独立的 `silk_shop_shadow` 影子库，通过 `SHADOW_DATABASE_URL` 配置；专用账号仍无 CREATEDB 权限。影子库只供 Prisma 重建/比较结构，绝不能与主库使用相同地址。已有环境需由管理员预先建立独立影子库。已提交迁移通过 `db:deploy` 应用，不需要影子库。
 
 禁止对已有业务库运行 `migrate reset`。不要把 .env、连接密码或数据库导出提交到 Git。
+
+## 可选双向同步
+
+`20261030040000_bidirectional_sync` 迁移增加三张内部表及业务表的变更捕获触发器：`_sync_identity` 保存本库唯一节点 ID；`_sync_versions` 以表名和记录 UUID 为联合主键，保存微秒精度版本及删除标记；`_sync_events` 用 BIGSERIAL 排队，保存事件 UUID、操作、行 JSON、来源、时间、投递状态与错误码。它们不属于管理后台业务 API，不应手工修改。
+
+两库首次安装迁移会分别捕获已有记录，启动可选同步进程后互相传递。触发器、CHECK、序列默认值由迁移维护；表结构仍通过 Prisma 管理，DDL 不会通过同步进程传播。配置、账号冲突处理与维护见 [双向同步指南](database-sync.md)。
 
 ## 验证范围
 

@@ -25,7 +25,7 @@ $env:Path += ';C:\Program Files\Docker\Docker\resources\bin'
 - Swagger：http://localhost:8088/docs
 - OpenAPI：http://localhost:8088/docs-json
 
-容器数据库与本机开发数据库相互独立，首次使用需重新注册账号；本机账号和商品不会自动复制。修改根目录 `.env` 的 `WEB_PORT` 可更换入口端口，再执行 `docker compose up -d`。
+默认容器数据库与本机开发数据库独立，首次使用需注册账号。需要让本机 PostgreSQL 与 8088 后台的用户、商品、分类互相同步时，按 [双向同步指南](database-sync.md) 配置并使用带 `docker-compose.sync.yml` 的完整启动、停止命令。修改根目录 `.env` 的 `WEB_PORT` 可更换入口端口。
 
 ## 启动顺序与数据
 

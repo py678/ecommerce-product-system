@@ -49,3 +49,39 @@ model Product {
   @@index([createdAt])
   @@map("products")
 }
+
+// Durable change journal and tombstones for the optional two-database bridge.
+model SyncIdentity {
+  id     Int    @id @default(1)
+  nodeId String @unique @default(dbgenerated("gen_random_uuid()")) @map("node_id") @db.Uuid
+
+  @@map("_sync_identity")
+}
+
+model SyncVersion {
+  tableName String   @map("table_name") @db.VarChar(16)
+  recordId  String   @map("record_id") @db.Uuid
+  changedAt DateTime @map("changed_at") @db.Timestamptz(6)
+  originId  String   @map("origin_id") @db.Uuid
+  eventId   String   @map("event_id") @db.Uuid
+
+  @@id([tableName, recordId])
+  @@map("_sync_versions")
+}
+
+model SyncEvent {
+  sequence    BigInt    @id @default(dbgenerated("nextval('_sync_events_sequence_seq'::regclass)"))
+  eventId     String    @unique @map("event_id") @db.Uuid
+  tableName   String    @map("table_name") @db.VarChar(16)
+  recordId    String    @map("record_id") @db.Uuid
+  operation   String    @db.VarChar(6)
+  rowData     Json?     @map("row_data")
+  changedAt   DateTime  @map("changed_at") @db.Timestamptz(6)
+  originId    String    @map("origin_id") @db.Uuid
+  deliveredAt DateTime? @map("delivered_at") @db.Timestamptz(6)
+  attemptedAt DateTime? @map("attempted_at") @db.Timestamptz(6)
+  lastError   String?   @map("last_error") @db.VarChar(32)
+
+  @@index([deliveredAt, attemptedAt, sequence])
+  @@map("_sync_events")
+}

@@ -8,6 +8,8 @@
 
 根据 `backend/.env.example` 配置被 Git 忽略的 `backend/.env`。数据库初始化、专用账号权限与迁移说明见 [数据库文档](database.md)。`DATABASE_URL` 应连接独立项目库；`JWT_SECRET` 使用至少 32 随机字节的密钥，不使用示例密码或提交真实凭据。
 
+需要在本机 Prisma Studio 看到 8088 后台的数据时，先按 [双向同步指南](database-sync.md) 启用同步。两边都运行时通常约 1–3 秒同步，Studio 需刷新表格；本机直接增删改也会同步回 Docker 库。
+
 ## 启动后端
 
 在仓库根目录执行：
