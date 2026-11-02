@@ -39,4 +39,4 @@ npm.cmd run start:dev
 - 本仓库配置 .githooks/commit-msg；新克隆后执行 git config core.hooksPath .githooks。
 - 首次成功推送后向周勇（Leo.Zhou）和黄锐（Bruce.Huang）发送仓库地址。
 - 密码、令牌、node_modules、生成代码、构建产物和安装包不提交。
-- 执行约定见 AGENTS.md 与 .cursor/rules/project.mdc；后续安排见项目计划.md。
+- 全局执行约定见 [AGENTS.md](AGENTS.md)；Prisma 迁移、NestJS 归属、Swagger 同步和前端表单流程由 [.agents/skills/](.agents/skills/) 下的 Codex Skills 按任务加载；后续安排见项目计划.md。
