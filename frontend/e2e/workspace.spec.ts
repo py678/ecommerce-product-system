@@ -3,6 +3,7 @@ import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+import { unlink } from 'node:fs/promises';
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { DatabaseService } from '../../backend/dist/database/database.service.js';
@@ -25,6 +26,7 @@ const apiBase = compose
   ? `${process.env.E2E_BASE_URL ?? 'http://127.0.0.1:8088'}/api`
   : 'http://127.0.0.1:3002/api';
 let database: DatabaseService;
+const uploadedPaths: string[] = [];
 
 async function login(page: Page, username = ownerName) {
   await page.goto('/login');
@@ -69,11 +71,20 @@ test.beforeAll(async ({ request }) => {
 });
 
 test.afterAll(async () => {
+  await Promise.all(
+    uploadedPaths.map((url) =>
+      unlink(
+        fileURLToPath(new URL(`../../backend${url}`, import.meta.url)),
+      ).catch(() => {}),
+    ),
+  );
   if (compose) {
     await promisify(execFile)(
       process.env.DOCKER_EXECUTABLE ?? 'docker',
       [
         'compose',
+        '-p',
+        process.env.E2E_COMPOSE_PROJECT ?? 'silk-shop',
         'run',
         '--rm',
         '--no-deps',
@@ -316,4 +327,102 @@ test('disables foreign product mutations, recovers from network failure and redi
   expect(
     await page.evaluate(() => sessionStorage.getItem('silk-shop.access-token')),
   ).toBeNull();
+});
+
+test('uploads a cover with feedback, saves and previews it, then clears it without deleting the file', async ({
+  page,
+  request,
+}) => {
+  await login(page);
+  await page.getByRole('button', { name: '新建商品' }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByLabel('商品名称').fill(`${prefix}_cover`);
+  await dialog.getByRole('combobox', { name: '请选择商品分类' }).click();
+  await page.getByText(`${prefix}_shared`, { exact: true }).last().click();
+  await dialog.getByLabel('价格（元）').fill('12.34');
+  const png = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jJ1sAAAAASUVORK5CYII=',
+    'base64',
+  );
+  const input = dialog.locator('input[type=file]');
+  await input.setInputFiles({
+    name: 'bad.svg',
+    mimeType: 'image/svg+xml',
+    buffer: Buffer.from('<svg/>'),
+  });
+  await expect(
+    page.getByText('仅支持 JPG、JPEG、PNG、WEBP 图片', { exact: true }),
+  ).toBeVisible();
+  await page.route(
+    '**/api/upload/image',
+    (route) =>
+      route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ message: '测试上传失败' }),
+      }),
+    { times: 1 },
+  );
+  await input.setInputFiles({
+    name: 'cover.png',
+    mimeType: 'image/png',
+    buffer: png,
+  });
+  await expect(page.getByText('测试上传失败', { exact: true })).toBeVisible();
+  await page.route(
+    '**/api/upload/image',
+    async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 400));
+      await route.continue();
+    },
+    { times: 1 },
+  );
+  const uploaded = page.waitForResponse(
+    (response) =>
+      response.url().endsWith('/api/upload/image') && response.status() === 200,
+  );
+  await input.setInputFiles({
+    name: 'cover.png',
+    mimeType: 'image/png',
+    buffer: png,
+  });
+  await expect(dialog.getByRole('button', { name: '创建商品' })).toBeDisabled();
+  const url = (await (await uploaded).json()).data.url as string;
+  uploadedPaths.push(url);
+  await expect(
+    dialog.locator('.ant-upload-list-item-thumbnail img'),
+  ).toHaveAttribute('src', url);
+  const saved = page.waitForResponse(
+    (response) =>
+      response.url().endsWith('/api/products') &&
+      response.request().method() === 'POST',
+  );
+  await dialog.getByRole('button', { name: '创建商品' }).click();
+  const product = await (await saved).json();
+  expect(product.coverImage).toBe(url);
+  await expect(dialog).not.toBeVisible();
+  await page.goto(`/products/${product.id}`);
+  await page.getByRole('button', { name: '编辑商品' }).click();
+  await expect(
+    dialog.locator('.ant-upload-list-item-thumbnail img'),
+  ).toHaveAttribute('src', url);
+  await dialog.locator('.ant-upload-list-item-actions a').click();
+  await expect(page.getByAltText('商品封面预览')).toBeVisible();
+  await page
+    .getByRole('dialog')
+    .filter({ hasText: '商品封面' })
+    .last()
+    .getByRole('button', { name: /Close|关闭/ })
+    .click();
+  await dialog.locator('.ant-upload-list-item-actions button').click();
+  const cleared = page.waitForResponse(
+    (response) =>
+      response.url().endsWith(`/api/products/${product.id}`) &&
+      response.request().method() === 'PATCH',
+  );
+  await dialog.getByRole('button', { name: '保存修改' }).click();
+  expect((await (await cleared).json()).coverImage).toBeNull();
+  const image = await request.get(url);
+  expect(image.status()).toBe(200);
+  expect(await image.body()).toEqual(png);
 });

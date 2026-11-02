@@ -43,6 +43,7 @@ export class ProductsService {
             categoryId: dto.categoryId,
             name: dto.name,
             description: dto.description,
+            coverImage: dto.coverImage === '' ? null : dto.coverImage,
             price: dto.price,
             stock: dto.stock,
           },
@@ -110,6 +111,7 @@ export class ProductsService {
           data: {
             name: dto.name,
             description: dto.description,
+            coverImage: dto.coverImage === '' ? null : dto.coverImage,
             price: dto.price,
             stock: dto.stock,
             categoryId: dto.categoryId,

@@ -3,6 +3,20 @@
 基础地址：`http://localhost:3000/api`。
 Swagger 页面：`http://localhost:3000/docs`；OpenAPI JSON：`http://localhost:3000/docs-json`。
 
+## 图片上传与商品封面
+
+`POST /upload/image`（含全局前缀的完整路径为 `/api/upload/image`），需要 Bearer JWT，使用 `multipart/form-data`，唯一文件字段为 `file`。单文件最多 5 MiB（5 × 1024 × 1024 字节），仅接受 jpg/jpeg/png/webp；后端核对扩展名、MIME 与文件签名，使用 UUID 重命名保存到后端工作目录的 `./uploads`。
+
+成功返回 HTTP 200：
+
+```json
+{ "code": 0, "message": "ok", "data": { "url": "/uploads/96c01d96-53f3-4fb8-b761-923ab8fae3fe.png" } }
+```
+
+缺少/无效 JWT 返回 401；缺少文件、类型不合法、多文件或错误字段返回 400；超出大小限制返回 413。返回的 `/uploads/**` 图片可直接访问，无需登录，请勿上传私密文件。
+
+商品创建/更新接受可选字符串 `coverImage`：上传返回的 `/uploads/UUID.ext` 相对路径，或合法的 HTTP(S) URL（最长 2048 字符）；不传该字段时保留已有值，传空字符串明确清空封面，非法 URL、非字符串和请求中的 `null` 返回 400。商品响应始终包含 `coverImage: string | null`。清空或替换封面不会删除服务器文件，原有 CRUD、价格、库存和权限规则保持不变。
+
 ## 认证接口
 
 | 方法与路径 | 请求 | 成功结果 |
@@ -92,7 +106,7 @@ JWT 使用 HS256，只接受匹配本系统 issuer/audience、包含有效用户
 
 商品名 trim 后长度 1–200；描述可选，最长 10000 字符，默认空字符串。price 必须是非负十进制字符串，最多两位小数，最大 `9999999999.99`，不接受 JSON 数字、科学计数法、NaN、无穷值或前后空白。返回金额固定两位小数，避免前端使用浮点计算。stock 为 JSON 整数，范围 0–2147483647，创建时默认 0。
 
-PATCH 只能提交 name、description、price、stock、categoryId 中的一个或多个字段；不提交的字段保持原值，null、空对象及额外字段返回 400。分类必须存在；引用不存在的分类返回 400。商品不存在返回 404；非创建者编辑或删除返回 403。UUID 格式错误返回 400。
+PATCH 只能提交 name、description、coverImage、price、stock、categoryId 中的一个或多个字段；不提交的字段保持原值，null、空对象及额外字段返回 400。分类必须存在；引用不存在的分类返回 400。商品不存在返回 404；非创建者编辑或删除返回 403。UUID 格式错误返回 400。
 
 详情及列表项含 category（id/name）、user（id/username），不包含创建者邮箱、密码或密码哈希。
 

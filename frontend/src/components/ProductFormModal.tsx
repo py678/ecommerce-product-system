@@ -4,6 +4,7 @@ import { api, errorMessage } from '../api/client';
 import type { Product, ProductInput } from '../api/types';
 import { trimInput } from '../utils/format';
 import { CategorySelect } from './CategorySelect';
+import { CoverImageUpload } from './CoverImageUpload';
 
 export function ProductFormModal({
   product,
@@ -16,9 +17,11 @@ export function ProductFormModal({
 }) {
   const [form] = Form.useForm<ProductInput>();
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const { message } = App.useApp();
 
   async function save(values: ProductInput) {
+    if (uploading) return;
     setSaving(true);
     try {
       if (product) await api.products.update(product.id, values);
@@ -40,11 +43,12 @@ export function ProductFormModal({
       okText={product ? '保存修改' : '创建商品'}
       cancelText="取消"
       confirmLoading={saving}
+      okButtonProps={{ disabled: uploading }}
       onOk={() => form.submit()}
       onCancel={onCancel}
-      closable={!saving}
-      mask={{ closable: !saving }}
-      cancelButtonProps={{ disabled: saving }}
+      closable={!saving && !uploading}
+      mask={{ closable: !saving && !uploading }}
+      cancelButtonProps={{ disabled: saving || uploading }}
     >
       <Form<ProductInput>
         form={form}
@@ -57,11 +61,12 @@ export function ProductFormModal({
             ? {
                 name: product.name,
                 description: product.description,
+                coverImage: product.coverImage ?? '',
                 price: product.price,
                 stock: product.stock,
                 categoryId: product.categoryId,
               }
-            : { description: '', stock: 0 }
+            : { description: '', stock: 0, coverImage: '' }
         }
       >
         <Form.Item
@@ -129,6 +134,16 @@ export function ProductFormModal({
             placeholder="补充规格、用途等信息（选填）"
             maxLength={10000}
             showCount
+          />
+        </Form.Item>
+        <Form.Item
+          label="商品封面"
+          name="coverImage"
+          extra="JPG/JPEG/PNG/WEBP，最多 5MB；移除只清空封面，不删除服务器文件。"
+        >
+          <CoverImageUpload
+            disabled={saving}
+            onUploadingChange={setUploading}
           />
         </Form.Item>
       </Form>

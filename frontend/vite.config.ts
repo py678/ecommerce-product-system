@@ -24,6 +24,10 @@ export default defineConfig({
     port: Number(process.env.DEV_SERVER_PORT ?? 5173),
     strictPort: true,
     proxy: {
+      '/uploads': {
+        target: process.env.DEV_API_TARGET ?? 'http://127.0.0.1:3000',
+        changeOrigin: true,
+      },
       '/api': {
         target: process.env.DEV_API_TARGET ?? 'http://127.0.0.1:3000',
         changeOrigin: true,

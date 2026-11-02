@@ -25,6 +25,7 @@ export interface Product {
   id: string;
   name: string;
   description: string;
+  coverImage: string | null;
   price: string;
   stock: number;
   categoryId: string;
@@ -38,9 +39,16 @@ export interface Product {
 export interface ProductInput {
   name: string;
   description: string;
+  coverImage?: string;
   price: string;
   stock: number;
   categoryId: string;
+}
+
+export interface ImageUploadResponse {
+  code: 0;
+  message: 'ok';
+  data: { url: string };
 }
 
 export interface Page<T> {

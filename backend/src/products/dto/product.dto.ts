@@ -11,6 +11,7 @@ import {
   ValidateIf,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
+import { IsCoverImageUrl } from './cover-image.validator.js';
 import {
   PageMetadataDto,
   PaginationDto,
@@ -30,6 +31,19 @@ export class CreateProductDto {
   @IsString()
   @MaxLength(10000)
   description?: string;
+
+  @ApiPropertyOptional({
+    type: String,
+    maxLength: 2048,
+    description:
+      '上传返回的 /uploads/UUID.ext 路径或 HTTP(S) URL；空字符串清空封面',
+    example: '/uploads/96c01d96-53f3-4fb8-b761-923ab8fae3fe.png',
+  })
+  @ValidateIf((_object, value) => value !== undefined)
+  @IsString()
+  @MaxLength(2048)
+  @IsCoverImageUrl()
+  coverImage?: string;
 
   @ApiProperty({
     type: String,
@@ -98,6 +112,13 @@ export class ProductResponseDto {
 
   @ApiProperty()
   description: string;
+
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    description: '封面 URL，无封面时为 null',
+  })
+  coverImage: string | null;
 
   @ApiProperty({ type: String, example: '129.90' })
   price: string;

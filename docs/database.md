@@ -26,6 +26,7 @@ erDiagram
     uuid category_id FK
     varchar name
     text description
+    varchar cover_image
     decimal price
     int stock
     timestamptz created_at
@@ -40,6 +41,7 @@ erDiagram
 - `password_hash` 最长 255 字符，只存密码哈希。数据库不能代替应用执行密码哈希；接口不得返回该字段。
 - `categories.name` 最长 120 字符。分类层级为可选项，本阶段不增加自关联。
 - `products.name` 最长 200 字符，描述为 text，默认空字符串。
+- `products.cover_image` 对应 Prisma 的可空 `coverImage` 字段，类型为 VARCHAR(2048)，存储封面 URL；已有商品迁移后为 null，图片二进制保存在上传目录中。
 - 金额采用 `Decimal(12,2)`，非负，最大 9,999,999,999.99。API 使用字符串传递金额，避免 JS 浮点误差；超过两位小数应由 DTO 拒绝，PostgreSQL numeric 本身会舍入。
 - 库存为非负 32 位整数，默认 0；用户、分类外键均非空。
 - 用户名、邮箱、商品名、分类名不能只包含普通空格。非负值及非空白 CHECK 约束通过迁移 SQL 管理，Prisma schema 不表达这些 CHECK；后续迁移需保留。
@@ -62,7 +64,7 @@ npm.cmd run start:dev
 
 本地首次建库可使用 `scripts/setup-database.ts`：向进程环境提供 `POSTGRES_ADMIN_URL`（具有建库/建角色权限），运行 `npm.cmd run db:setup`。脚本只创建固定的新项目库和新角色，遇到同名资源或已有 `.env` 会终止，不重置密码、不覆盖已有库。专用随机密码只写入被 Git 忽略的 `.env`。若建库中断，不要删库重试，应检查已创建的资源与 `.env` 后人工恢复。
 
-新增模型变更使用 `npm.cmd run db:migrate -- --name change_description`，在开发库生成迁移。初始化脚本同时创建独立的 `silk_shop_shadow` 影子库，通过 `SHADOW_DATABASE_URL` 配置；专用账号仍无 CREATEDB 权限。影子库只供 Prisma 重建/比较结构，绝不能与主库使用相同地址。已有环境需由管理员预先建立独立影子库。已提交迁移通过 `db:deploy` 应用，不需要影子库。
+新增模型变更使用 `npm.cmd run db:migrate -- --name change_description --create-only`，在开发库仅生成迁移，审查 SQL 并在隔离库验证后再使用 `db:deploy` 应用。初始化脚本同时创建独立的 `silk_shop_shadow` 影子库，通过 `SHADOW_DATABASE_URL` 配置；专用账号仍无 CREATEDB 权限。影子库只供 Prisma 重建/比较结构，绝不能与主库使用相同地址。已有环境需由管理员预先建立独立影子库。已提交迁移通过 `db:deploy` 应用，不需要影子库。
 
 禁止对已有业务库运行 `migrate reset`。不要把 .env、连接密码或数据库导出提交到 Git。
 

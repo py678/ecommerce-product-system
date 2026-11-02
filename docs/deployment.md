@@ -40,6 +40,10 @@ $env:Path += ';C:\Program Files\Docker\Docker\resources\bin'
 
 ## 日常操作
 
+图片文件保存在 `backend/uploads/`，通过 bind mount 映射到容器 `/app/uploads`，重建容器不会删除文件。该目录及图片不提交 Git、不复制进构建镜像；备份时同时保存上传目录和数据库。Windows Docker Desktop 可直接使用；Linux 部署应先创建该目录，并赋予容器 node 用户（UID 1000）写权限。Nginx 请求体限制为 6 MiB（含 multipart 开销），后端单文件限制为 5 MiB；`/uploads/` 代理到后端并公开访问。
+
+封面列新增后，本机与 Docker 库需分别部署迁移，并更新同步服务镜像以传递 `cover_image`。启用双向同步时，更新命令为 `docker compose -f docker-compose.yml -f docker-compose.sync.yml --profile sync up -d --build --wait`。数据库同步只同步 URL；本机与容器共用本仓库的上传目录，部署到不同机器时需另行共享/复制图片文件。
+
 ```powershell
 docker compose ps -a
 docker compose logs --tail 80 db migrate backend frontend

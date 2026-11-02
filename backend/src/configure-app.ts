@@ -1,10 +1,21 @@
 import { ValidationPipe } from '@nestjs/common';
 import type { INestApplication } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { static as serveStatic } from 'express';
+import { UPLOAD_DIRECTORY } from './upload/upload.config.js';
 
 // Share the production HTTP configuration with end-to-end tests.
 export function configureApp(app: INestApplication): void {
   app.setGlobalPrefix('api');
+  app.use(
+    '/uploads',
+    serveStatic(UPLOAD_DIRECTORY, {
+      index: false,
+      dotfiles: 'deny',
+      setHeaders: (response) =>
+        response.setHeader('X-Content-Type-Options', 'nosniff'),
+    }),
+  );
   app.useGlobalPipes(
     new ValidationPipe({
       transform: true,

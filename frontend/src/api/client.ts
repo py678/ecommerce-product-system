@@ -2,6 +2,7 @@ import axios from 'axios';
 import { sessionToken, SESSION_EXPIRED_EVENT } from '../auth/session';
 import type {
   AuthResponse,
+  ImageUploadResponse,
   Category,
   ListQuery,
   Page,
@@ -57,6 +58,18 @@ export function errorMessage(error: unknown): string {
 export const isCanceled = axios.isCancel;
 
 export const api = {
+  upload: {
+    image: async (file: File, signal: AbortSignal) => {
+      const form = new FormData();
+      form.append('file', file);
+      const response = (
+        await http.post<ImageUploadResponse>('/upload/image', form, { signal })
+      ).data;
+      if (response.code !== 0 || typeof response.data?.url !== 'string')
+        throw new Error('Invalid image upload response');
+      return response;
+    },
+  },
   auth: {
     register: async (input: {
       username: string;

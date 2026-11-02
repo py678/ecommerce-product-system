@@ -37,6 +37,7 @@ model Product {
   categoryId  String   @map("category_id") @db.Uuid
   name        String   @db.VarChar(200)
   description String   @default("") @db.Text
+  coverImage  String?  @map("cover_image") @db.VarChar(2048)
   price       Decimal  @db.Decimal(12, 2)
   stock       Int      @default(0)
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)

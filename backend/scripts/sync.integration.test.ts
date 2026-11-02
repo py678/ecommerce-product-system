@@ -163,6 +163,16 @@ test('two independent PostgreSQL databases converge without losing pending chang
         ),
       );
     await verifyPeers(a, b);
+    for (const db of [a, b])
+      await db.query(
+        await readFile(
+          new URL(
+            '../prisma/migrations/20261102063340_add_product_cover_image/migration.sql',
+            import.meta.url,
+          ),
+          'utf8',
+        ),
+      );
     await t.test('migration bootstraps existing rows', async () => {
       await rounds();
       assert.equal(
@@ -191,8 +201,16 @@ test('two independent PostgreSQL databases converge without losing pending chang
           'Original',
         ]);
         await a.query(
-          'INSERT INTO products (id,user_id,category_id,name,price,stock) VALUES ($1,$2,$3,$4,$5,$6)',
-          [product, user, category, 'Product', '9999999999.99', 7],
+          'INSERT INTO products (id,user_id,category_id,name,price,stock,cover_image) VALUES ($1,$2,$3,$4,$5,$6,$7)',
+          [
+            product,
+            user,
+            category,
+            'Product',
+            '9999999999.99',
+            7,
+            'https://example.com/cover.png',
+          ],
         );
         await rounds();
         const row = (
@@ -200,6 +218,7 @@ test('two independent PostgreSQL databases converge without losing pending chang
         ).rows[0];
         assert.equal(row.price, '9999999999.99');
         assert.equal(row.user_id, user);
+        assert.equal(row.cover_image, 'https://example.com/cover.png');
         assert.equal(
           (await b.query('SELECT count(*) FROM _sync_events')).rows[0].count,
           '1',
@@ -210,9 +229,10 @@ test('two independent PostgreSQL databases converge without losing pending chang
     await t.test(
       'peer updates and inserts travel back to the primary',
       async () => {
-        await b.query('UPDATE products SET stock=0,price=99.95 WHERE id=$1', [
-          product,
-        ]);
+        await b.query(
+          'UPDATE products SET stock=0,price=99.95,cover_image=NULL WHERE id=$1',
+          [product],
+        );
         await b.query('UPDATE categories SET name=$2 WHERE id=$1', [
           category,
           'Peer updated',
@@ -223,6 +243,14 @@ test('two independent PostgreSQL databases converge without losing pending chang
           'Peer created',
         ]);
         await rounds();
+        assert.equal(
+          (
+            await a.query('SELECT cover_image FROM products WHERE id=$1', [
+              product,
+            ])
+          ).rows[0].cover_image,
+          null,
+        );
         assert.equal(
           (await a.query('SELECT stock FROM products WHERE id=$1', [product]))
             .rows[0].stock,

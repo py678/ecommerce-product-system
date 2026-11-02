@@ -16,6 +16,7 @@ const columns = {
     'category_id',
     'name',
     'description',
+    'cover_image',
     'price',
     'stock',
     'created_at',

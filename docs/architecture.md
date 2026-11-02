@@ -2,6 +2,8 @@
 
 后端采用 NestJS 模块结构，使用 TypeScript / ESM；通过 Prisma PostgreSQL adapter 连接数据库。前端采用 React / Vite、Ant Design、React Router 和 Axios。
 
+图片上传由独立 `UploadModule` 处理：JWT Guard 先鉴权，Multer 限制 multipart 单文件并暂存在内存，服务校验扩展名/MIME/签名后以 UUID 写入 `./uploads`。Express 通过 `/uploads` 提供公开静态访问；商品表只保存可空封面 URL。前端 `CoverImageUpload` 通过统一 Axios 封装上传，作为受控表单字段写入 URL，并提供预览、清空和错误反馈。开发代理与 Nginx 转发图片路径，Docker 将目录绑定到 `backend/uploads`，使容器重建后文件保留，且本机开发使用同一目录。接口约定和变更清单见 [商品图片功能](product-images.md)。
+
 ```mermaid
 flowchart LR
   UI[React 管理后台 / Swagger] --> HTTP[NestJS HTTP API]
