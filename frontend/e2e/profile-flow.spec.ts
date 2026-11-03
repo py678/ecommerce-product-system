@@ -48,7 +48,7 @@ test('edits email, changes password, rejects old credentials and signs in again'
       page.getByRole('heading', { name: '个人中心', exact: true }),
     ).toBeVisible();
     await page
-      .getByLabel('邮箱', { exact: true })
+      .getByLabel('邮箱地址', { exact: true })
       .fill(`${username}_updated@example.invalid`);
     await page.getByRole('button', { name: '保存资料', exact: true }).click();
     await expect(

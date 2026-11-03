@@ -24,10 +24,10 @@ test('validates profile/password fields and displays field-level API failures', 
     return route.fulfill({ status: 400, json: { message: '原密码错误' } });
   });
   await page.goto('/profile');
-  await expect(page.getByLabel('邮箱', { exact: true })).toHaveValue(
+  await expect(page.getByLabel('邮箱地址', { exact: true })).toHaveValue(
     user.email,
   );
-  await page.getByLabel('邮箱', { exact: true }).fill('invalid');
+  await page.getByLabel('邮箱地址', { exact: true }).fill('invalid');
   await page.getByRole('button', { name: '保存资料', exact: true }).click();
   await expect(page.getByText('请输入有效邮箱')).toBeVisible();
   await page
@@ -69,7 +69,9 @@ test('validates profile/password fields and displays field-level API failures', 
   await page.route('**/api/users/me', (route) =>
     route.fulfill({ status: 409, json: { message: '邮箱已被使用' } }),
   );
-  await page.getByLabel('邮箱', { exact: true }).fill('taken@example.invalid');
+  await page
+    .getByLabel('邮箱地址', { exact: true })
+    .fill('taken@example.invalid');
   await page.getByRole('button', { name: '保存资料', exact: true }).click();
   await expect(page.getByText('邮箱已被使用', { exact: true })).toBeVisible();
 });
