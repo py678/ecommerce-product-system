@@ -6,6 +6,7 @@ const columns = {
     'username',
     'email',
     'password_hash',
+    'token_version',
     'created_at',
     'updated_at',
   ],
@@ -78,13 +79,29 @@ export async function applyChange(
         const quoted = fields.map((field) => `"${field}"`).join(', ');
         const updates = fields
           .filter((field) => field !== 'id')
-          .map((field) => `"${field}"=EXCLUDED."${field}"`)
+          .map((field) => {
+            // An older profile event must never restore a password or revive revoked credentials.
+            if (change.table_name === 'users' && field === 'token_version')
+              return '"token_version"=GREATEST("users"."token_version",EXCLUDED."token_version")';
+            if (change.table_name === 'users' && field === 'password_hash')
+              return '"password_hash"=CASE WHEN EXCLUDED."token_version">="users"."token_version" THEN EXCLUDED."password_hash" ELSE "users"."password_hash" END';
+            return `"${field}"=EXCLUDED."${field}"`;
+          })
           .join(', ');
         await target.query(
           `INSERT INTO "${change.table_name}" (${quoted})
            SELECT ${quoted} FROM jsonb_populate_record(NULL::"${change.table_name}", $1::jsonb)
            ON CONFLICT (id) DO UPDATE SET ${updates}`,
-          [JSON.stringify(change.row_data)],
+          [
+            JSON.stringify(
+              change.table_name === 'users'
+                ? {
+                    ...change.row_data,
+                    token_version: change.row_data.token_version ?? 0,
+                  }
+                : change.row_data,
+            ),
+          ],
         );
       }
     }

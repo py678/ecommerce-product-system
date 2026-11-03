@@ -7,7 +7,7 @@ import { execFile } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { test } from 'node:test';
 import { Client } from 'pg';
-import { syncDirection, verifyPeers } from './sync/bridge.ts';
+import { applyChange, syncDirection, verifyPeers } from './sync/bridge.ts';
 
 // These URLs must be two disposable databases; refuse to run without explicit test opt-in.
 if (process.env.SYNC_DISPOSABLE_TEST !== '1')
@@ -173,6 +173,16 @@ test('two independent PostgreSQL databases converge without losing pending chang
           'utf8',
         ),
       );
+    for (const db of [a, b])
+      await db.query(
+        await readFile(
+          new URL(
+            '../prisma/migrations/20261103054143_user_token_version/migration.sql',
+            import.meta.url,
+          ),
+          'utf8',
+        ),
+      );
     await t.test('migration bootstraps existing rows', async () => {
       await rounds();
       assert.equal(
@@ -292,6 +302,59 @@ test('two independent PostgreSQL databases converge without losing pending chang
             ).rows[0].name,
             'Newer',
           );
+      },
+    );
+    await t.test(
+      'password and token version propagate without stale profile events reviving old credentials',
+      async () => {
+        await a.query(
+          'UPDATE users SET password_hash=$2,token_version=token_version+1 WHERE id=$1',
+          [user, 'changed-test-hash'],
+        );
+        await rounds();
+        const snapshot = (
+          await b.query('SELECT * FROM users WHERE id=$1', [user])
+        ).rows[0];
+        assert.equal(snapshot.token_version, 1);
+        assert.equal(snapshot.password_hash, 'changed-test-hash');
+        await applyChange(b, {
+          sequence: '0',
+          event_id: randomUUID(),
+          table_name: 'users',
+          record_id: user,
+          operation: 'UPSERT',
+          row_data: {
+            ...snapshot,
+            token_version: 0,
+            password_hash: 'old-test-hash',
+          },
+          changed_at: '2099-01-01T00:00:00Z',
+          origin_id: randomUUID(),
+          last_error: null,
+        });
+        const after = (
+          await b.query(
+            'SELECT token_version,password_hash FROM users WHERE id=$1',
+            [user],
+          )
+        ).rows[0];
+        assert.equal(after.token_version, 1);
+        assert.equal(after.password_hash, 'changed-test-hash');
+        // Remove only the synthetic future version so later existing convergence tests keep their original clock assumptions.
+        await b.query(
+          'DELETE FROM _sync_versions WHERE table_name=$1 AND record_id=$2',
+          ['users', user],
+        );
+        await b.query(
+          'UPDATE users SET password_hash=$2,token_version=token_version+1 WHERE id=$1',
+          [user, 'second-test-hash'],
+        );
+        await rounds();
+        assert.equal(
+          (await a.query('SELECT token_version FROM users WHERE id=$1', [user]))
+            .rows[0].token_version,
+          2,
+        );
       },
     );
     await t.test(

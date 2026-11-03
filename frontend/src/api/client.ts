@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { sessionToken, SESSION_EXPIRED_EVENT } from '../auth/session';
+import { sessionToken, expireSession } from '../auth/session';
 import type {
   AuthResponse,
   ImageUploadResponse,
@@ -37,8 +37,11 @@ http.interceptors.response.use(
         token &&
         error.config?.headers.get('Authorization') === `Bearer ${token}`
       ) {
-        sessionToken.set(null);
-        window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT));
+        expireSession(
+          error.response.data?.message === '密码已修改，请重新登录'
+            ? 'passwordChanged'
+            : 'expired',
+        );
       }
     }
     return Promise.reject(error);
@@ -60,6 +63,17 @@ export function errorMessage(error: unknown): string {
 export const isCanceled = axios.isCancel;
 
 export const api = {
+  users: {
+    me: async (signal?: AbortSignal) =>
+      (await http.get<User>('/users/me', { signal })).data,
+    update: async (input: { email: string }) =>
+      (await http.patch<User>('/users/me', input)).data,
+    changePassword: async (input: {
+      oldPassword: string;
+      newPassword: string;
+    }) =>
+      (await http.patch<{ message: string }>('/users/me/password', input)).data,
+  },
   upload: {
     image: async (file: File, signal: AbortSignal) => {
       const form = new FormData();

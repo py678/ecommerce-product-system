@@ -67,8 +67,8 @@ describe.sequential('Catalog HTTP API (real PostgreSQL)', () => {
       });
       userIds.push(user.id);
     }
-    token = await jwt.signAsync({ sub: userIds[0] });
-    otherToken = await jwt.signAsync({ sub: userIds[1] });
+    token = await jwt.signAsync({ sub: userIds[0], tokenVersion: 0 });
+    otherToken = await jwt.signAsync({ sub: userIds[1], tokenVersion: 0 });
     for (const suffix of ['A', 'B']) {
       const response = await category({ name: `${prefix}_${suffix}` }).expect(
         201,

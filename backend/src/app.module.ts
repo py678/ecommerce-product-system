@@ -5,6 +5,7 @@ import { DatabaseModule } from './database/database.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { CategoriesModule } from './categories/categories.module.js';
 import { ProductsModule } from './products/products.module.js';
+import { UsersModule } from './users/users.module.js';
 import { UploadModule } from './upload/upload.module.js';
 
 @Module({
@@ -14,6 +15,7 @@ import { UploadModule } from './upload/upload.module.js';
     CategoriesModule,
     ProductsModule,
     UploadModule,
+    UsersModule,
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 120 }]),
   ],
   providers: [

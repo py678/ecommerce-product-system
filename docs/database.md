@@ -11,6 +11,7 @@ erDiagram
     varchar username UK
     varchar email UK
     varchar password_hash
+    int token_version
     timestamptz created_at
     timestamptz updated_at
   }
@@ -39,6 +40,7 @@ erDiagram
 - 主键由 PostgreSQL `gen_random_uuid()` 生成；时间使用带时区时间戳，精度为毫秒。
 - `users.username` 最长 64 字符、唯一；`email` 最长 254 字符、唯一。认证模块负责 trim、邮箱小写归一化、邮箱格式验证及 BCrypt 哈希；数据库唯一约束区分大小写。
 - `password_hash` 最长 255 字符，只存密码哈希。数据库不能代替应用执行密码哈希；接口不得返回该字段。
+- `token_version` 对应 Prisma `tokenVersion`，INTEGER NOT NULL DEFAULT 0，用于登录凭证失效；已有用户迁移后为 0，原哈希和其他字段不变。改密时同一事务内更新哈希并递增版本，公开用户资料不返回此内部字段。
 - `categories.name` 最长 120 字符。分类层级为可选项，本阶段不增加自关联。
 - `products.name` 最长 200 字符，描述为 text，默认空字符串。
 - `products.cover_image` 对应 Prisma 的可空 `coverImage` 字段，类型为 VARCHAR(2048)，存储封面 URL；已有商品迁移后为 null，图片二进制保存在上传目录中。

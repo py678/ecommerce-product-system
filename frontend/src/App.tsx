@@ -31,6 +31,12 @@ const ProductDetailPage = lazy(() =>
   })),
 );
 
+const ProfilePage = lazy(() =>
+  import('./pages/ProfilePage').then((module) => ({
+    default: module.ProfilePage,
+  })),
+);
+
 function RequireAuth() {
   const { user, loading, error, signOut } = useAuth();
   const location = useLocation();
@@ -78,6 +84,7 @@ export default function App() {
             <Route path="/products" element={<ProductsPage />} />
             <Route path="/products/:id" element={<ProductDetailPage />} />
             <Route path="/categories" element={<CategoriesPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
           </Route>
         </Route>
         <Route

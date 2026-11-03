@@ -41,7 +41,9 @@ describe.sequential('Image upload and product cover HTTP API', () => {
     });
     userId = user.id;
     categoryId = (await db.category.create({ data: { name: prefix } })).id;
-    token = await app.get(JwtService).signAsync({ sub: userId });
+    token = await app
+      .get(JwtService)
+      .signAsync({ sub: userId, tokenVersion: 0 });
   });
   afterAll(async () => {
     if (db && userId) {

@@ -3,6 +3,7 @@ import { Avatar, Button, Layout, Menu, Space, Typography } from 'antd';
 import {
   AppstoreOutlined,
   FolderOutlined,
+  UserOutlined,
   LogoutOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
@@ -15,9 +16,11 @@ export function AdminLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
-  const section = location.pathname.startsWith('/categories')
-    ? '/categories'
-    : '/products';
+  const section = location.pathname.startsWith('/profile')
+    ? '/profile'
+    : location.pathname.startsWith('/categories')
+      ? '/categories'
+      : '/products';
 
   return (
     <Layout className="admin-layout">
@@ -49,6 +52,7 @@ export function AdminLayout() {
           items={[
             { key: '/products', icon: <AppstoreOutlined />, label: '商品管理' },
             { key: '/categories', icon: <FolderOutlined />, label: '分类管理' },
+            { key: '/profile', icon: <UserOutlined />, label: '个人中心' },
           ]}
         />
         <div className="sidebar-footer">
@@ -67,7 +71,11 @@ export function AdminLayout() {
             />
             <span className="breadcrumb">
               工作台 <span>/</span>{' '}
-              {section === '/products' ? '商品管理' : '分类管理'}
+              {section === '/profile'
+                ? '个人中心'
+                : section === '/products'
+                  ? '商品管理'
+                  : '分类管理'}
             </span>
           </Space>
           <Space size={12}>

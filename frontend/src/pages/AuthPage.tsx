@@ -23,7 +23,9 @@ export function AuthPage({ register = false }: { register?: boolean }) {
   const from: unknown = location.state?.from;
   const destination =
     typeof from === 'string' &&
-    (from.startsWith('/products') || from.startsWith('/categories'))
+    (from.startsWith('/products') ||
+      from.startsWith('/categories') ||
+      from === '/profile')
       ? from
       : '/products';
 

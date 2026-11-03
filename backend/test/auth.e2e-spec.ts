@@ -67,6 +67,7 @@ describe.sequential('Authentication HTTP API (real PostgreSQL)', () => {
     const claims = await jwt.verifyAsync(registration.accessToken);
     expect(claims).toMatchObject({
       sub: stored.id,
+      tokenVersion: 0,
       iss: JWT_ISSUER,
       aud: JWT_AUDIENCE,
     });
@@ -184,18 +185,21 @@ describe.sequential('Authentication HTTP API (real PostgreSQL)', () => {
     const tokens = [
       'not-a-jwt',
       `${registration.accessToken}.tampered`,
-      await jwt.signAsync({ sub: registration.user.id }, { expiresIn: -1 }),
       await jwt.signAsync(
-        { sub: registration.user.id },
+        { sub: registration.user.id, tokenVersion: 0 },
+        { expiresIn: -1 },
+      ),
+      await jwt.signAsync(
+        { sub: registration.user.id, tokenVersion: 0 },
         { audience: 'other-application' },
       ),
       await jwt.signAsync(
-        { sub: registration.user.id },
+        { sub: registration.user.id, tokenVersion: 0 },
         { issuer: 'other-issuer' },
       ),
-      await jwt.signAsync({ sub: 'invalid-user-id' }),
+      await jwt.signAsync({ sub: 'invalid-user-id', tokenVersion: 0 }),
       await jwt.signAsync(
-        { sub: registration.user.id },
+        { sub: registration.user.id, tokenVersion: 0 },
         { secret: 'a-different-secret-that-is-long-enough' },
       ),
     ];
@@ -212,7 +216,7 @@ describe.sequential('Authentication HTTP API (real PostgreSQL)', () => {
   });
 
   it('rejects an otherwise valid token for a deleted user', async () => {
-    const token = await jwt.signAsync({ sub: randomUUID() });
+    const token = await jwt.signAsync({ sub: randomUUID(), tokenVersion: 0 });
     await request(app.getHttpServer())
       .get('/api/auth/me')
       .set('Authorization', `Bearer ${token}`)

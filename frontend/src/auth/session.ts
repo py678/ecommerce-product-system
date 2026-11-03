@@ -23,3 +23,11 @@ export const sessionToken = {
     }
   },
 };
+
+export type SessionExpiryReason = 'expired' | 'passwordChanged';
+export function expireSession(reason: SessionExpiryReason = 'expired') {
+  sessionToken.set(null);
+  window.dispatchEvent(
+    new CustomEvent(SESSION_EXPIRED_EVENT, { detail: { reason } }),
+  );
+}

@@ -45,7 +45,9 @@ describe.sequential('Product filtering HTTP API (isolated PostgreSQL)', () => {
       },
     });
     userId = user.id;
-    token = await app.get(JwtService).signAsync({ sub: userId });
+    token = await app
+      .get(JwtService)
+      .signAsync({ sub: userId, tokenVersion: 0 });
     for (const name of ['A', 'B'])
       categoryIds.push(
         (await db.category.create({ data: { name: `${prefix}_${name}` } })).id,

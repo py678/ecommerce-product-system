@@ -8,6 +8,7 @@ export interface AuthContextValue {
   notice: string | null;
   signIn: (response: AuthResponse) => void;
   signOut: () => void;
+  updateUser: (user: User) => void;
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null);

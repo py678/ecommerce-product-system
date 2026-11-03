@@ -28,6 +28,7 @@ export class JwtAuthGuard implements CanActivate {
     )?.[1];
     if (!token) throw new UnauthorizedException('请提供 Bearer 登录令牌');
     let subject: string;
+    let tokenVersion: number;
     try {
       const payload =
         await this.jwt.verifyAsync<Record<string, unknown>>(token);
@@ -36,15 +37,20 @@ export class JwtAuthGuard implements CanActivate {
         !payload ||
         typeof payload.sub !== 'string' ||
         !isUUID(payload.sub) ||
-        typeof payload.exp !== 'number'
+        typeof payload.exp !== 'number' ||
+        typeof payload.tokenVersion !== 'number' ||
+        !Number.isSafeInteger(payload.tokenVersion) ||
+        payload.tokenVersion < 0 ||
+        payload.tokenVersion > 2147483647
       ) {
         throw new Error('Invalid access token claims');
       }
       subject = payload.sub;
+      tokenVersion = payload.tokenVersion as number;
     } catch {
       throw new UnauthorizedException('登录令牌无效或已过期');
     }
-    request.user = await this.auth.findAuthenticatedUser(subject);
+    request.user = await this.auth.findAuthenticatedUser(subject, tokenVersion);
     return true;
   }
 }

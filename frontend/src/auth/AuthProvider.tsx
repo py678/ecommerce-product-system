@@ -13,10 +13,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const controller = new AbortController();
-    function expire() {
+    function expire(event: Event) {
       setUser(null);
       setError(null);
-      setNotice('登录已过期，请重新登录。');
+      const reason = (event as CustomEvent<{ reason?: string }>).detail?.reason;
+      setNotice(
+        reason === 'passwordChanged'
+          ? '密码已修改，请重新登录'
+          : '登录已过期，请重新登录。',
+      );
     }
     window.addEventListener(SESSION_EXPIRED_EVENT, expire);
     if (sessionToken.get()) {
@@ -59,7 +64,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, loading, error, notice, signIn, signOut }}
+      value={{
+        user,
+        loading,
+        error,
+        notice,
+        signIn,
+        signOut,
+        updateUser: (next) =>
+          setUser((current) => (current?.id === next.id ? next : current)),
+      }}
     >
       {children}
     </AuthContext.Provider>
