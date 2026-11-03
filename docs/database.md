@@ -47,6 +47,7 @@ erDiagram
 - 用户名、邮箱、商品名、分类名不能只包含普通空格。非负值及非空白 CHECK 约束通过迁移 SQL 管理，Prisma schema 不表达这些 CHECK；后续迁移需保留。
 - 用户或分类被商品引用时使用 `RESTRICT` 禁止删除；先调整/删除关联商品。
 - 商品建立创建时间索引、用户+创建时间索引和分类+创建时间索引，支持分页列表。
+- `20261103023330_product_list_filter_indexes` 新增 `(stock, created_at)`、`(price, created_at)`、`(updated_at)` 索引，沿用 Prisma 索引命名。复用现有分类+创建时间索引；未引入 status 或可空价格，也不增加无效的名称 B-tree 子串索引。仅 CREATE INDEX，不修改数据、外键、CHECK 或同步触发器。普通建索引会暂时阻塞并发写入，较大数据量应安排维护窗口。
 - `updated_at` 由 Prisma `@updatedAt` 在更新时维护；直接写 SQL 时应自行更新。同步触发器单独记录事件时间，不代替维护业务 `updated_at`。
 
 ## 配置与迁移

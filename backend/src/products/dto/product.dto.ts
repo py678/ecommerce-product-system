@@ -12,10 +12,7 @@ import {
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import { IsCoverImageUrl } from './cover-image.validator.js';
-import {
-  PageMetadataDto,
-  PaginationDto,
-} from '../../common/dto/pagination.dto.js';
+import { PageMetadataDto } from '../../common/dto/pagination.dto.js';
 
 export class CreateProductDto {
   @ApiProperty({ example: 'USB-C 充电器', minLength: 1, maxLength: 200 })
@@ -74,12 +71,7 @@ export class UpdateProductDto extends PartialType(CreateProductDto, {
   skipNullProperties: false,
 }) {}
 
-export class ProductQueryDto extends PaginationDto {
-  @ApiPropertyOptional({ format: 'uuid', description: '按分类筛选' })
-  @ValidateIf((_object, value) => value !== undefined)
-  @IsUUID()
-  categoryId?: string;
-}
+export { ProductQueryDto } from './product-query.dto.js';
 
 class ProductCategoryDto {
   @ApiProperty({ format: 'uuid' })
@@ -140,6 +132,26 @@ export class ProductResponseDto {
 }
 
 export class ProductPageDto extends PageMetadataDto {
-  @ApiProperty({ type: [ProductResponseDto] })
+  @ApiProperty({ type: [ProductResponseDto], description: '商品列表' })
+  list: ProductResponseDto[];
+
+  @ApiProperty({
+    description:
+      '全局低库存阈值：0 < stock < 此值为 low；stock >= 此值为 normal',
+    example: 6,
+  })
+  lowStockThreshold: number;
+
+  @ApiProperty({
+    deprecated: true,
+    description: '兼容旧客户端；请使用 total 和 pageSize 计算',
+  })
+  declare totalPages: number;
+
+  @ApiProperty({
+    type: [ProductResponseDto],
+    deprecated: true,
+    description: '兼容旧客户端，与 list 相同',
+  })
   items: ProductResponseDto[];
 }

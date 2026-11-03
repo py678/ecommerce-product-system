@@ -41,3 +41,7 @@ npm.cmd run start:dev
 - 首次成功推送后向周勇（Leo.Zhou）和黄锐（Bruce.Huang）发送仓库地址。
 - 密码、令牌、node_modules、生成代码、构建产物和安装包不提交。
 - 全局执行约定见 [AGENTS.md](AGENTS.md)；Prisma 迁移、NestJS 归属、Swagger 同步和前端表单流程由 [.agents/skills/](.agents/skills/) 下的 Codex Skills 按任务加载；后续安排见项目计划.md。
+
+## 商品筛选与排序
+
+名称、分类、闭区间价格、库存组合筛选，支持排序、URL 条件恢复和 300ms 防抖。参数兼容、文件清单与部署说明见 [商品筛选与排序](docs/product-filters.md)。

@@ -53,7 +53,9 @@ export class ProductsController {
   }
 
   @Get()
-  @ApiOperation({ summary: '分页搜索商品，可按分类筛选' })
+  @ApiOperation({
+    summary: '商品组合筛选与白名单排序（名称、分类、价格、库存）',
+  })
   @ApiOkResponse({ type: ProductPageDto })
   findAll(@Query() query: ProductQueryDto) {
     return this.products.findAll(query);

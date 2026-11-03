@@ -8,6 +8,8 @@ import type {
   Page,
   Product,
   ProductInput,
+  ProductListQuery,
+  ProductPage,
   User,
 } from './types';
 
@@ -93,8 +95,8 @@ export const api = {
     },
   },
   products: {
-    list: async (params: ListQuery, signal?: AbortSignal) =>
-      (await http.get<Page<Product>>('/products', { params, signal })).data,
+    list: async (params: ProductListQuery, signal?: AbortSignal) =>
+      (await http.get<ProductPage>('/products', { params, signal })).data,
     get: async (id: string, signal: AbortSignal) =>
       (await http.get<Product>(`/products/${id}`, { signal })).data,
     create: async (input: ProductInput) =>

@@ -1,10 +1,9 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   App,
   Button,
   Card,
   Empty,
-  Input,
   Popconfirm,
   Space,
   Table,
@@ -17,12 +16,13 @@ import {
   PlusOutlined,
   ReloadOutlined,
 } from '@ant-design/icons';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
-import type { ListQuery, Product } from '../api/types';
+import type { ProductListQuery, Product } from '../api/types';
 import { useAuth } from '../auth/useAuth';
 import { useResource } from '../hooks/useResource';
-import { CategorySelect } from '../components/CategorySelect';
+import { ProductListFilters } from '../components/ProductListFilters';
+import { readProductQuery, productQueryErrors } from './product-list-query';
 import { RequestError } from '../components/PageFeedback';
 import { ProductFormModal } from '../components/ProductFormModal';
 import { formatMoney, formatTime } from '../utils/format';
@@ -30,13 +30,42 @@ import { formatMoney, formatTime } from '../utils/format';
 export function ProductsPage() {
   const { user } = useAuth();
   const { message } = App.useApp();
-  const [query, setQuery] = useState<ListQuery>({ page: 1, pageSize: 20 });
-  const [search, setSearch] = useState('');
+  const [params, setParams] = useSearchParams();
+  const query = useMemo(() => readProductQuery(params), [params]);
+  const [debouncedQuery, setDebouncedQuery] = useState(query);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedQuery(query), 300);
+    return () => window.clearTimeout(timer);
+  }, [query]);
+  function setQuery(next: ProductListQuery) {
+    const updated = new URLSearchParams(params);
+    updated.delete('search');
+    for (const [key, value] of Object.entries(next)) {
+      if (value === undefined || value === '') updated.delete(key);
+      else updated.set(key, String(value));
+    }
+    setParams(updated);
+  }
+  const invalid = Object.keys(productQueryErrors(query)).length > 0;
+  const debouncing = query !== debouncedQuery;
   const [modal, setModal] = useState<{ product?: Product } | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
   const load = useCallback(
-    (signal: AbortSignal) => api.products.list(query, signal),
-    [query],
+    (signal: AbortSignal) => {
+      if (Object.keys(productQueryErrors(debouncedQuery)).length)
+        return Promise.resolve({
+          list: [],
+          items: [],
+          total: 0,
+          page: debouncedQuery.page,
+          pageSize: debouncedQuery.pageSize,
+          totalPages: 0,
+          lowStockThreshold: 6,
+        });
+      const name = debouncedQuery.name?.trim();
+      return api.products.list({ ...debouncedQuery, name }, signal);
+    },
+    [debouncedQuery],
   );
   const { data, loading, error, refresh } = useResource(load);
 
@@ -45,7 +74,7 @@ export function ProductsPage() {
     try {
       await api.products.remove(product.id);
       void message.success('商品已删除');
-      if (data?.items.length === 1 && query.page > 1)
+      if (data?.list.length === 1 && query.page > 1)
         setQuery({ ...query, page: query.page - 1 });
       else refresh();
     } catch (cause) {
@@ -102,7 +131,15 @@ export function ProductsPage() {
       key: 'stock',
       width: 110,
       render: (stock: number) => (
-        <Tag color={stock === 0 ? 'error' : stock <= 5 ? 'warning' : 'success'}>
+        <Tag
+          color={
+            stock === 0
+              ? 'error'
+              : stock < (data?.lowStockThreshold ?? 6)
+                ? 'warning'
+                : 'success'
+          }
+        >
           {stock === 0 ? '缺货' : `${stock} 件`}
         </Tag>
       ),
@@ -190,32 +227,10 @@ export function ProductsPage() {
       </div>
       <Card className="catalog-card">
         <div className="list-toolbar">
-          <div className="list-filters">
-            <Input.Search
-              aria-label="搜索商品"
-              placeholder="搜索商品名称"
-              value={search}
-              maxLength={100}
-              allowClear
-              onChange={(event) => setSearch(event.target.value)}
-              onSearch={(value) =>
-                setQuery({
-                  ...query,
-                  page: 1,
-                  search: value.trim() || undefined,
-                })
-              }
-              enterButton="搜索"
-            />
-            <CategorySelect
-              value={query.categoryId}
-              allowClear
-              placeholder="全部分类"
-              onChange={(categoryId) =>
-                setQuery({ ...query, page: 1, categoryId })
-              }
-            />
-          </div>
+          <ProductListFilters
+            query={query}
+            onChange={(patch) => setQuery({ ...query, ...patch, page: 1 })}
+          />
           <Button
             aria-label="刷新"
             icon={<ReloadOutlined />}
@@ -232,16 +247,24 @@ export function ProductsPage() {
         <Table<Product>
           rowKey="id"
           columns={columns}
-          dataSource={data?.items ?? []}
-          loading={loading}
+          dataSource={error || invalid ? [] : (data?.list ?? [])}
+          loading={loading || debouncing}
           scroll={{ x: 1160 }}
           locale={{
             emptyText: (
               <Empty
                 description={
-                  query.search || query.categoryId
-                    ? '没有找到符合条件的商品'
-                    : '还没有商品，先创建一件吧'
+                  invalid
+                    ? '请先修正筛选条件'
+                    : error
+                      ? '商品加载失败，请重试'
+                      : query.name ||
+                          query.categoryId ||
+                          query.minPrice ||
+                          query.maxPrice ||
+                          query.stockStatus
+                        ? '没有找到符合条件的商品'
+                        : '还没有商品，先创建一件吧'
                 }
               />
             ),

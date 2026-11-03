@@ -61,6 +61,7 @@ JWT 使用 HS256，只接受匹配本系统 issuer/audience、包含有效用户
 - `JWT_EXPIRES_IN_SECONDS`：60–86400 的整数，默认 3600。
 - `FRONTEND_ORIGIN`：允许跨域的前端来源，默认 `http://localhost:5173`。
 - `PORT`：默认 3000。
+- `LOW_STOCK_THRESHOLD`：全局正整数，范围 1–2147483647，默认 6；`zero` 为 `stock = 0`，`low` 为 `stock > 0 且 stock < 阈值`，`normal` 为 `stock >= 阈值`。非法配置阻止应用启动。
 
 新的数据库初始化脚本会自动生成 JWT 密钥。本机现有 `.env` 也已补充随机密钥。不要覆盖 `.env`，不要将真实密钥提交到 Git。
 
@@ -87,7 +88,7 @@ JWT 使用 HS256，只接受匹配本系统 issuer/audience、包含有效用户
 | 方法与路径 | 用途 | 成功结果 |
 | --- | --- | --- |
 | POST /products | 创建商品 | 201；商品详情 |
-| GET /products | 分页搜索、按分类筛选 | 200；分页结果 |
+| GET /products | 名称、分类、价格、库存组合筛选与排序 | 200；分页结果 |
 | GET /products/{id} | 查看商品详情 | 200；商品详情 |
 | PATCH /products/{id} | 部分修改自己创建的商品 | 200；更新后的商品 |
 | DELETE /products/{id} | 删除自己创建的商品 | 204，无响应正文 |
@@ -112,9 +113,32 @@ PATCH 只能提交 name、description、coverImage、price、stock、categoryId 
 
 ## 分页与搜索
 
-两种列表均支持 `page`（默认 1，范围 1–1000000）、`pageSize`（默认 20，范围 1–100）和可选 `search`（trim 后 1–100 字符，按名称搜索，不区分大小写）。商品列表额外支持 `categoryId`，可与搜索同时使用。不得传入未知查询参数；小数、负数、空字符串等非法页码返回 400。
+分类列表维持原约定：`page` 默认 1、范围 1–1000000；`pageSize` 默认 20、范围 1–100；`search` trim 后 1–100 字符、不区分大小写；返回 `{ items, total, page, pageSize, totalPages }`，按 createdAt、id 降序排序。
 
-例如 `/api/products?page=1&pageSize=20&search=充电器&categoryId=<实际UUID>`。列表响应统一为 `{ items, total, page, pageSize, totalPages }`，按 createdAt 降序、id 降序稳定排序，列表与计数在同一数据库快照中读取。未匹配时 items 为空、total/totalPages 为 0；超出最后一页时 items 为空但保留实际 total。
+商品列表 `GET /api/products` 的所有筛选可组合，均为可选：
+
+| 参数 | 类型与规则 | 示例/默认值 |
+| --- | --- | --- |
+| page | 整数，1–1000000 | 默认 1 |
+| pageSize | 整数，1–100 | 默认 **10**；前端显式传递 |
+| name | trim 后 1–200 字符，名称模糊匹配，大小写不敏感 | `充电器` |
+| search | **deprecated**，旧名称查询，trim 后 1–100 字符；同传时 name 优先 | `充电器` |
+| categoryId | 分类 UUID；扁平结构，仅当前分类 | 实际 UUID |
+| minPrice | 非负金额字符串，最多 10 位整数、2 位小数；价格 **>=** 此值 | `10.00` |
+| maxPrice | 格式同 minPrice，价格 **<=** 此值；同传时必须 >= minPrice | `100.00` |
+| stockStatus | `zero`：stock **= 0**；`low`：stock **> 0 且 < LOW_STOCK_THRESHOLD**；`normal`：stock **>= LOW_STOCK_THRESHOLD** | 全局阈值默认 6 |
+| sortBy | 白名单 `price / stock / createdAt / updatedAt` | 默认 createdAt |
+| sortOrder | `asc / desc`，id 的方向跟随主字段 | 默认 desc |
+
+价格为非空字段，无空价格分支；区间为闭区间，可单独传上下限。不增加 status 字段或状态筛选。金额比较使用数据库 Decimal。未知字段、非法枚举、重复参数数组、格式错误、颠倒价格区间和超限分页返回 400。
+
+示例：`/api/products?page=1&pageSize=10&name=充电器&minPrice=10&maxPrice=100&stockStatus=low&sortBy=price&sortOrder=asc`。
+
+返回 `{ list, items, total, page, pageSize, totalPages, lowStockThreshold }`。`list` 为新客户端使用的列表；`items`（deprecated）与 list 完全相同，`totalPages`（deprecated）保留旧客户端兼容；`lowStockThreshold` 供列表库存标签与服务端阈值保持一致。分类响应不变。
+
+主排序字段后追加同方向 id，保证相同价格、库存、时间下分页稳定。排序字段均为 NOT NULL，因此不会出现空值，满足 NULLS LAST；Prisma 对非空列不接受显式 nulls 选项，今后若允许空值必须同步补上 `nulls: 'last'`。排序仅使用显式 Prisma 字段映射，不拼接 SQL。列表与计数仍在同一 RepeatableRead 快照中读取。未匹配时 list/items 为空且 total/totalPages 为 0；页码超出结果时列表为空但保留真实 total。
+
+前端在商品列表提供筛选与排序控件，URL query 是条件来源，刷新及浏览器前进/后退可恢复；请求防抖 300ms，筛选或排序变化回到第 1 页。非法价格在输入框旁提示并暂停请求。加载、空结果和可重试网络错误有独立反馈。
 
 ## 本阶段验证
 

@@ -590,3 +590,24 @@ p {
 .catalog-card .ant-table-cell {
   overflow-wrap: anywhere;
 }
+
+/* Product filters wrap without changing category list layout. */
+.product-list-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+.product-list-filters .ant-form-item {
+  margin-bottom: 0;
+}
+.product-list-filters .ant-form-item-row {
+  display: block;
+}
+.product-list-filters .ant-form-item-label {
+  text-align: left;
+}
+.product-list-filters .ant-select {
+  width: 100%;
+}

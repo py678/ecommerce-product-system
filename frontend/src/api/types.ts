@@ -65,3 +65,29 @@ export interface ListQuery {
   search?: string;
   categoryId?: string;
 }
+
+export interface ProductListQuery {
+  page: number;
+  pageSize: number;
+  name?: string;
+  /** @deprecated Use name. */
+  search?: string;
+  categoryId?: string;
+  minPrice?: string;
+  maxPrice?: string;
+  stockStatus?: 'zero' | 'low' | 'normal';
+  sortBy: 'price' | 'stock' | 'createdAt' | 'updatedAt';
+  sortOrder: 'asc' | 'desc';
+}
+
+export interface ProductPage {
+  list: Product[];
+  /** @deprecated Use list. */
+  items: Product[];
+  total: number;
+  page: number;
+  pageSize: number;
+  /** @deprecated Compute from total and pageSize. */
+  totalPages: number;
+  lowStockThreshold: number;
+}

@@ -36,6 +36,8 @@ services:
       DATABASE_URL: postgresql://silk_shop_app:${APP_PASSWORD:?Missing APP_PASSWORD}@db:5432/silk_shop?schema=public
       JWT_SECRET: ${JWT_SECRET:?Missing JWT_SECRET}
       JWT_EXPIRES_IN_SECONDS: 3600
+      # zero: stock = 0; low: 0 < stock < threshold; normal: stock >= threshold.
+      LOW_STOCK_THRESHOLD: ${LOW_STOCK_THRESHOLD:-6}
       FRONTEND_ORIGIN: http://localhost:${WEB_PORT:-8088}
       PORT: 3000
     volumes:

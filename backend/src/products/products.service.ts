@@ -4,6 +4,8 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { lowStockThreshold } from './products.config.js';
+import { productListQuery } from './product-list-query.js';
 import { DatabaseService } from '../database/database.service.js';
 import { Prisma } from '../generated/prisma/client.js';
 import {
@@ -28,6 +30,7 @@ function toResponse(product: ProductRecord): ProductResponseDto {
 
 @Injectable()
 export class ProductsService {
+  private readonly threshold = lowStockThreshold();
   constructor(private readonly db: DatabaseService) {}
 
   async create(
@@ -56,18 +59,13 @@ export class ProductsService {
   }
 
   async findAll(query: ProductQueryDto): Promise<ProductPageDto> {
-    const where: Prisma.ProductWhereInput = {
-      ...(query.search
-        ? { name: { contains: query.search, mode: 'insensitive' } }
-        : {}),
-      ...(query.categoryId ? { categoryId: query.categoryId } : {}),
-    };
+    const { where, orderBy } = productListQuery(query, this.threshold);
     const [items, total] = await this.db.$transaction(
       [
         this.db.product.findMany({
           where,
           include: PRODUCT_RELATIONS,
-          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+          orderBy,
           skip: (query.page - 1) * query.pageSize,
           take: query.pageSize,
         }),
@@ -75,8 +73,11 @@ export class ProductsService {
       ],
       { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
     );
+    const list = items.map(toResponse);
     return {
-      items: items.map(toResponse),
+      list,
+      items: list,
+      lowStockThreshold: this.threshold,
       total,
       page: query.page,
       pageSize: query.pageSize,
