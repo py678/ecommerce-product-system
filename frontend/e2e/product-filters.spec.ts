@@ -139,6 +139,54 @@ test('sends selected category, stock and sorting controls in the URL and request
   expect(new URL(page.url()).searchParams.get('categoryId')).toBe(categoryId);
 });
 
+test('waits for Chinese composition to finish before searching or updating the URL', async ({
+  page,
+}) => {
+  const requests: URLSearchParams[] = [];
+  page.on('request', (request) => {
+    const url = new URL(request.url());
+    if (url.pathname === '/api/products') requests.push(url.searchParams);
+  });
+  await page.goto(`/products?categoryId=${categoryId}`);
+  await expect(
+    page.getByRole('link', { name: product.name, exact: true }),
+  ).toBeVisible();
+  requests.length = 0;
+  const search = page.getByLabel('搜索商品', { exact: true });
+  await search.focus();
+  await search.dispatchEvent('compositionstart');
+  await search.fill("shou'ji");
+  // Deliberately wait longer than the debounce: unfinished IME text must not search.
+  await page.waitForTimeout(450);
+  expect(requests).toHaveLength(0);
+  expect(new URL(page.url()).searchParams.has('name')).toBe(false);
+  await expect(search).toBeFocused();
+  await search.evaluate((input) => {
+    const element = input as HTMLInputElement;
+    Object.getOwnPropertyDescriptor(
+      HTMLInputElement.prototype,
+      'value',
+    )!.set!.call(element, '手机');
+    element.dispatchEvent(
+      new InputEvent('input', {
+        bubbles: true,
+        inputType: 'insertCompositionText',
+        data: '手机',
+        isComposing: true,
+      }),
+    );
+    element.dispatchEvent(
+      new CompositionEvent('compositionend', { bubbles: true, data: '手机' }),
+    );
+  });
+  await expect.poll(() => requests.at(-1)?.get('name')).toBe('手机');
+  expect(requests.some((query) => query.get('name') === "shou'ji")).toBe(false);
+  expect(new URL(page.url()).searchParams.get('name')).toBe('手机');
+  expect(new URL(page.url()).searchParams.get('categoryId')).toBe(categoryId);
+  await expect(search).toHaveValue('手机');
+  await expect(search).toBeFocused();
+});
+
 test('shows field errors, empty results, loading and retryable request errors', async ({
   page,
 }) => {

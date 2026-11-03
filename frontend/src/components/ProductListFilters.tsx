@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import { Form, Input, Select } from 'antd';
 import type { ProductListQuery } from '../api/types';
 import { productQueryErrors } from '../pages/product-list-query';
@@ -9,6 +10,12 @@ interface Props {
 }
 
 export function ProductListFilters({ query, onChange }: Props) {
+  const [name, setName] = useState(query.name ?? '');
+  const composing = useRef(false);
+  // Keep browser history/URL restoration, but never overwrite unfinished IME text.
+  useEffect(() => {
+    if (!composing.current) setName(query.name ?? '');
+  }, [query.name]);
   const errors = productQueryErrors(query);
   return (
     <div className="product-list-filters">
@@ -20,14 +27,30 @@ export function ProductListFilters({ query, onChange }: Props) {
         <Input.Search
           aria-label="搜索商品"
           placeholder="搜索商品名称"
-          value={query.name ?? ''}
+          value={name}
           maxLength={200}
           allowClear
           enterButton="搜索"
-          onChange={(event) =>
-            onChange({ name: event.target.value || undefined })
-          }
-          onSearch={(value) => onChange({ name: value.trim() || undefined })}
+          onCompositionStart={() => {
+            composing.current = true;
+          }}
+          onCompositionEnd={(event) => {
+            composing.current = false;
+            const value = event.currentTarget.value;
+            setName(value);
+            onChange({ name: value || undefined });
+          }}
+          onChange={(event) => {
+            const value = event.target.value;
+            setName(value);
+            if (!composing.current) onChange({ name: value || undefined });
+          }}
+          onSearch={(value) => {
+            if (composing.current) return;
+            const trimmed = value.trim();
+            setName(trimmed);
+            onChange({ name: trimmed || undefined });
+          }}
         />
       </Form.Item>
       <Form.Item label="商品分类">
