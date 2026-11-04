@@ -119,7 +119,7 @@ describe('Personal centre validation and password transaction', () => {
     const user = {
       id: 'id',
       username: 'name',
-      role: 'VIEWER' as const,
+      role: 'OPERATOR' as const,
       email: dto.email,
       createdAt: new Date(),
       updatedAt: new Date(),

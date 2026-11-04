@@ -16,6 +16,7 @@ describe.sequential('RBAC and resource scope HTTP API', () => {
   const users: Record<string, { id: string; token: string }> = {};
   let categoryId: string, productId: string;
   const ids: string[] = [];
+  const previousCompanyId = process.env.ADMIN_REGISTRATION_COMPANY_ID;
   const api = (
     method: 'get' | 'post' | 'patch' | 'delete',
     url: string,
@@ -28,6 +29,7 @@ describe.sequential('RBAC and resource scope HTTP API', () => {
     );
   };
   beforeAll(async () => {
+    process.env.ADMIN_REGISTRATION_COMPANY_ID = 'registration-company-fixture';
     const module = await Test.createTestingModule({ imports: [AppModule] })
       .overrideProvider(ThrottlerGuard)
       .useValue({ canActivate: () => true })
@@ -40,7 +42,6 @@ describe.sequential('RBAC and resource scope HTTP API', () => {
     jwt = app.get(JwtService);
     const passwordHash = await hash('Rbac-test-password-123!', 12);
     for (const [name, role] of Object.entries({
-      viewer: 'VIEWER',
       operator: 'OPERATOR',
       other: 'OPERATOR',
       admin: 'ADMIN',
@@ -62,7 +63,7 @@ describe.sequential('RBAC and resource scope HTTP API', () => {
       };
     }
     categoryId = (await db.category.create({ data: { name: prefix } })).id;
-    for (const name of ['operator', 'other', 'viewer']) {
+    for (const name of ['operator', 'other']) {
       const p = await db.product.create({
         data: {
           name: prefix,
@@ -85,15 +86,18 @@ describe.sequential('RBAC and resource scope HTTP API', () => {
       }
     } finally {
       await app?.close();
+      if (previousCompanyId === undefined)
+        delete process.env.ADMIN_REGISTRATION_COMPANY_ID;
+      else process.env.ADMIN_REGISTRATION_COMPANY_ID = previousCompanyId;
     }
   });
-  it.each(['viewer', 'operator', 'other', 'admin'])(
+  it.each(['operator', 'other', 'admin'])(
     'enforces identical list and count scopes for %s',
     async (who) => {
       const r = await api('get', '/api/products', who)
         .query({ name: prefix, pageSize: 1 })
         .expect(200);
-      expect(r.body.total).toBe(3);
+      expect(r.body.total).toBe(2);
       expect(r.body.list).toHaveLength(1);
       expect(r.body.items).toEqual(r.body.list);
       const full = await api('get', '/api/products', who)
@@ -101,9 +105,7 @@ describe.sequential('RBAC and resource scope HTTP API', () => {
         .expect(200);
       expect(
         new Set(full.body.list.map((p: { userId: string }) => p.userId)),
-      ).toEqual(
-        new Set(['viewer', 'operator', 'other'].map((name) => users[name].id)),
-      );
+      ).toEqual(new Set(['operator', 'other'].map((name) => users[name].id)));
       await api('get', '/api/products/' + productId, who).expect(200);
       const empty = await api('get', '/api/products', who)
         .query({ name: prefix, minPrice: '11' })
@@ -121,7 +123,7 @@ describe.sequential('RBAC and resource scope HTTP API', () => {
         expect(r.body.message).toBe('商品不存在');
       }
   });
-  it.each(['viewer', 'operator', 'admin'])(
+  it.each(['operator', 'admin'])(
     'checks the selected login entrance against the database role for %s',
     async (who) => {
       const user = await db.user.findUniqueOrThrow({
@@ -182,26 +184,16 @@ describe.sequential('RBAC and resource scope HTTP API', () => {
       204,
     );
   });
-  it('denies viewer writes, image upload and admin APIs even when invoked directly', async () => {
-    await api('post', '/api/products', 'viewer')
-      .send({ name: prefix, categoryId, price: '1' })
+  it('denies operator access to administrator APIs even when invoked directly', async () => {
+    await api('get', '/api/admin/users').expect(403);
+    await api('patch', '/api/admin/users/' + users.target.id + '/role')
+      .send({ role: 'ADMIN' })
       .expect(403);
-    await api('patch', '/api/products/' + productId, 'viewer')
-      .send({ stock: 2 })
-      .expect(403);
-    await api('delete', '/api/products/' + productId, 'viewer').expect(403);
-    await api('post', '/api/upload/image', 'viewer').expect(403);
-    for (const who of ['viewer', 'operator']) {
-      await api('get', '/api/admin/users', who).expect(403);
-      await api('patch', '/api/admin/users/' + users.target.id + '/role', who)
-        .send({ role: 'ADMIN' })
-        .expect(403);
-    }
   });
   it('shares categories for reads and permits only administrators to maintain them', async () => {
-    for (const who of ['viewer', 'operator', 'admin'])
+    for (const who of ['operator', 'admin'])
       await api('get', '/api/categories/' + categoryId, who).expect(200);
-    for (const who of ['viewer', 'operator']) {
+    for (const who of ['operator']) {
       await api('post', '/api/categories', who)
         .send({ name: prefix })
         .expect(403);
@@ -241,7 +233,7 @@ describe.sequential('RBAC and resource scope HTTP API', () => {
       .query({ role: 'ROOT' })
       .expect(400);
     await api('patch', '/api/admin/users/' + users.target.id + '/role', 'admin')
-      .send({ role: 'VIEWER', tokenVersion: 99 })
+      .send({ role: 'ADMIN', tokenVersion: 99 })
       .expect(400);
   });
   it('atomically changes role, records audit and revokes every old token', async () => {
@@ -250,12 +242,12 @@ describe.sequential('RBAC and resource scope HTTP API', () => {
       tokenVersion: 0,
     });
     await api('patch', '/api/admin/users/' + users.target.id + '/role', 'admin')
-      .send({ role: 'VIEWER' })
+      .send({ role: 'ADMIN' })
       .expect(200);
     const user = await db.user.findUniqueOrThrow({
       where: { id: users.target.id },
     });
-    expect(user.role).toBe('VIEWER');
+    expect(user.role).toBe('ADMIN');
     expect(user.tokenVersion).toBe(1);
     expect(
       await db.roleAudit.count({
@@ -263,7 +255,7 @@ describe.sequential('RBAC and resource scope HTTP API', () => {
           actorId: users.admin.id,
           targetId: user.id,
           fromRole: 'OPERATOR',
-          toRole: 'VIEWER',
+          toRole: 'ADMIN',
         },
       }),
     ).toBe(1);
@@ -282,8 +274,8 @@ describe.sequential('RBAC and resource scope HTTP API', () => {
       .post('/api/auth/login')
       .send({ username: user.username, password: 'Rbac-test-password-123!' })
       .expect(200);
-    expect(login.body.user.role).toBe('VIEWER');
-    expect(login.body.user.permissions).not.toContain('product:create');
+    expect(login.body.user.role).toBe('ADMIN');
+    expect(login.body.user.permissions).toContain('user:read');
     await request(app.getHttpServer())
       .get('/api/products')
       .set('Authorization', 'Bearer ' + login.body.accessToken)
@@ -292,7 +284,7 @@ describe.sequential('RBAC and resource scope HTTP API', () => {
       .post('/api/products')
       .set('Authorization', 'Bearer ' + login.body.accessToken)
       .send({})
-      .expect(403);
+      .expect(400);
   });
   it('rolls back both role and version when the audit insert fails', async () => {
     // The isolated test schema is the only target; UUID is generated by the fixture.
@@ -305,7 +297,7 @@ describe.sequential('RBAC and resource scope HTTP API', () => {
         '/api/admin/users/' + users.other.id + '/role',
         'admin',
       )
-        .send({ role: 'VIEWER' })
+        .send({ role: 'ADMIN' })
         .expect(500);
       const user = await db.user.findUniqueOrThrow({
         where: { id: users.other.id },
@@ -321,38 +313,85 @@ describe.sequential('RBAC and resource scope HTTP API', () => {
   });
   it('forbids self role changes and rejects unknown role values', async () => {
     await api('patch', '/api/admin/users/' + users.admin.id + '/role', 'admin')
-      .send({ role: 'VIEWER' })
+      .send({ role: 'OPERATOR' })
       .expect(400);
     await api('patch', '/api/admin/users/' + users.target.id + '/role', 'admin')
       .send({ role: 'ROOT' })
       .expect(400);
     await api('patch', '/api/admin/users/' + randomUUID() + '/role', 'admin')
-      .send({ role: 'VIEWER' })
+      .send({ role: 'ADMIN' })
       .expect(404);
   });
-  it('registers viewers and rejects role/creator assignment at registration', async () => {
+  it('registers operators by default and rejects unauthorized administrator registration', async () => {
     const body = {
       username: prefix + '_registered',
       email: prefix + '_registered@example.invalid',
       password: 'Rbac-register-123!',
     };
-    for (const extra of [{ role: 'ADMIN' }, { creatorId: users.admin.id }])
+    for (const extra of [
+      { role: 'ADMIN' },
+      { role: 'ADMIN', companyId: 'wrong-company' },
+      { creatorId: users.admin.id },
+      { role: 'ROOT' },
+    ])
       await request(app.getHttpServer())
         .post('/api/auth/register')
         .send({ ...body, ...extra })
         .expect(400);
+    expect(
+      await db.user.findUnique({ where: { username: body.username } }),
+    ).toBeNull();
     const r = await request(app.getHttpServer())
       .post('/api/auth/register')
       .send(body)
       .expect(201);
     ids.push(r.body.user.id);
-    expect(r.body.user.role).toBe('VIEWER');
-    expect(r.body.user.permissions).toEqual(['product:read', 'category:read']);
+    expect(r.body.user.role).toBe('OPERATOR');
+    expect(r.body.user.permissions).toContain('product:create');
     expect(r.body.user).not.toHaveProperty('tokenVersion');
+    expect(r.body).not.toHaveProperty('companyId');
+  });
+  it('registers an administrator only with the server-configured company identifier', async () => {
+    const previous = process.env.ADMIN_REGISTRATION_COMPANY_ID;
+    process.env.ADMIN_REGISTRATION_COMPANY_ID = 'registration-company-fixture';
+    const body = {
+      username: prefix + '_admin_registered',
+      email: prefix + '_admin_registered@example.invalid',
+      password: 'Rbac-register-123!',
+      role: 'ADMIN',
+    };
+    try {
+      const r = await request(app.getHttpServer())
+        .post('/api/auth/register')
+        .send({ ...body, companyId: 'registration-company-fixture' })
+        .expect(201);
+      ids.push(r.body.user.id);
+      expect(r.body.user.role).toBe('ADMIN');
+      expect(r.body.user.permissions).toContain('user:read');
+      expect(JSON.stringify(r.body)).not.toContain(
+        'registration-company-fixture',
+      );
+      delete process.env.ADMIN_REGISTRATION_COMPANY_ID;
+      await request(app.getHttpServer())
+        .post('/api/auth/register')
+        .send({
+          ...body,
+          username: prefix + '_disabled',
+          companyId: 'registration-company-fixture',
+        })
+        .expect(503);
+      expect(
+        await db.user.count({ where: { username: prefix + '_disabled' } }),
+      ).toBe(0);
+    } finally {
+      if (previous === undefined)
+        delete process.env.ADMIN_REGISTRATION_COMPANY_ID;
+      else process.env.ADMIN_REGISTRATION_COMPANY_ID = previous;
+    }
   });
   it('does not trust JWT role claims over the database', async () => {
     const token = await jwt.signAsync({
-      sub: users.viewer.id,
+      sub: users.operator.id,
       tokenVersion: 0,
       role: 'ADMIN',
     });
@@ -366,10 +405,9 @@ describe.sequential('RBAC and resource scope HTTP API', () => {
       await request(app.getHttpServer()).get('/docs-json').expect(200)
     ).body;
     expect(doc.components.schemas.UserResponseDto.properties.role.enum).toEqual(
-      ['VIEWER', 'OPERATOR', 'ADMIN'],
+      ['OPERATOR', 'ADMIN'],
     );
     expect(doc.components.schemas.LoginDto.properties.loginRole.enum).toEqual([
-      'VIEWER',
       'OPERATOR',
       'ADMIN',
     ]);

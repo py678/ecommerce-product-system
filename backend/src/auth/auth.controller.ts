@@ -19,6 +19,7 @@ import {
   ApiTags,
   ApiTooManyRequestsResponse,
   ApiUnauthorizedResponse,
+  ApiServiceUnavailableResponse,
 } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service.js';
@@ -36,11 +37,14 @@ export class AuthController {
   @Post('register')
   @Header('Cache-Control', 'no-store')
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
-  @ApiOperation({ summary: '注册并获取登录令牌' })
+  @ApiOperation({ summary: '注册运营人员或管理员；管理员需公司内部 ID' })
   @ApiCreatedResponse({ type: AuthResponseDto })
   @ApiBadRequestResponse({ description: '输入验证失败' })
   @ApiConflictResponse({ description: '用户名或邮箱重复' })
   @ApiTooManyRequestsResponse({ description: '请求过于频繁' })
+  @ApiServiceUnavailableResponse({
+    description: '管理员注册未配置，拒绝管理员注册',
+  })
   register(@Body() dto: RegisterDto): Promise<AuthResponseDto> {
     return this.auth.register(dto);
   }
@@ -50,7 +54,7 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @ApiOperation({
-    summary: '通过用户名和密码登录，可选择访客、运营人员或管理员入口',
+    summary: '通过用户名和密码登录，可选择运营人员或管理员入口',
   })
   @ApiOkResponse({ type: AuthResponseDto })
   @ApiBadRequestResponse({ description: '输入验证失败' })

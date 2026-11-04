@@ -16,7 +16,6 @@ export const PERMISSIONS = [
 ] as const;
 export type Permission = (typeof PERMISSIONS)[number];
 export const ROLE_PERMISSIONS: Record<UserRole, readonly Permission[]> = {
-  VIEWER: ['product:read', 'category:read'],
   OPERATOR: [
     'product:read',
     'product:create',

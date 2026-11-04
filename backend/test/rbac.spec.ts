@@ -10,13 +10,9 @@ import {
 import { AdminUsersService } from '../dist/admin/admin-users.service.js';
 import type { DatabaseService } from '../dist/database/database.service.js';
 describe('RBAC fail-closed permissions and role transaction', () => {
-  it('defines exactly three roles and keeps viewer read-only', () => {
-    expect(Object.keys(ROLE_PERMISSIONS).sort()).toEqual([
-      'ADMIN',
-      'OPERATOR',
-      'VIEWER',
-    ]);
-    expect(ROLE_PERMISSIONS.VIEWER).toEqual(['product:read', 'category:read']);
+  it('defines exactly two roles with operator ownership restrictions', () => {
+    expect(Object.keys(ROLE_PERMISSIONS).sort()).toEqual(['ADMIN', 'OPERATOR']);
+    expect(ROLE_PERMISSIONS.OPERATOR).toContain('product:create');
     expect(productScope({ id: 'me', role: 'OPERATOR' })).toEqual({
       userId: 'me',
     });
@@ -65,7 +61,7 @@ describe('RBAC fail-closed permissions and role transaction', () => {
     const { service, update, audit } = setup();
     await expect(
       service.assignRole({ id: 'actor', role: 'ADMIN' }, 'target', {
-        role: 'VIEWER',
+        role: 'OPERATOR',
       }),
     ).rejects.toThrow('不能降级最后一个管理员');
     expect(update).not.toHaveBeenCalled();
@@ -75,7 +71,7 @@ describe('RBAC fail-closed permissions and role transaction', () => {
     const { service, update } = setup('OPERATOR');
     await expect(
       service.assignRole({ id: 'actor', role: 'ADMIN' }, 'target', {
-        role: 'VIEWER',
+        role: 'OPERATOR',
       }),
     ).rejects.toThrow('没有执行此操作的权限');
     expect(update).not.toHaveBeenCalled();
@@ -84,32 +80,32 @@ describe('RBAC fail-closed permissions and role transaction', () => {
     const { service, db } = setup();
     await expect(
       service.assignRole({ id: 'actor', role: 'ADMIN' }, 'actor', {
-        role: 'VIEWER',
+        role: 'OPERATOR',
       }),
     ).rejects.toThrow('不能修改自己的角色');
     expect(db.$transaction).not.toHaveBeenCalled();
   });
   it('propagates audit failure to the transaction for rollback', async () => {
     // Real transaction rollback is covered by the database-backed test.
-    const { service, tx, update, audit } = setup('ADMIN', 'OPERATOR', 2);
+    const { service, tx, update, audit } = setup('ADMIN', 'ADMIN', 2);
     update.mockResolvedValue({
       id: 'target',
       username: 'test',
       email: 'test@example.invalid',
-      role: 'VIEWER',
+      role: 'OPERATOR',
       createdAt: new Date(),
       updatedAt: new Date(),
     });
     audit.mockRejectedValue(new Error('audit unavailable'));
     await expect(
       service.assignRole({ id: 'actor', role: 'ADMIN' }, 'target', {
-        role: 'VIEWER',
+        role: 'OPERATOR',
       }),
     ).rejects.toThrow('audit unavailable');
     expect(tx.$executeRaw).toHaveBeenCalledOnce();
     expect(update).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: { role: 'VIEWER', tokenVersion: { increment: 1 } },
+        data: { role: 'OPERATOR', tokenVersion: { increment: 1 } },
       }),
     );
   });

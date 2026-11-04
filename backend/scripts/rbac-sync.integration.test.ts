@@ -38,19 +38,19 @@ test('role/version synchronization converges and rejects stale privilege restora
     const [a, b] = clients;
     const id = randomUUID();
     await a.query(
-      "INSERT INTO users(id,username,email,password_hash,role) VALUES($1,$2,$3,$4,'OPERATOR')",
+      "INSERT INTO users(id,username,email,password_hash,role) VALUES($1,$2,$3,$4,'ADMIN')",
       [id, 'sync_fixture', 'sync@example.invalid', 'fixture-hash'],
     );
     await syncDirection(a, b);
     await a.query(
-      "UPDATE users SET role='VIEWER',token_version=token_version+1 WHERE id=$1",
+      "UPDATE users SET role='OPERATOR',token_version=token_version+1 WHERE id=$1",
       [id],
     );
     await syncDirection(a, b);
     assert.deepEqual(
       (await b.query('SELECT role,token_version FROM users WHERE id=$1', [id]))
         .rows[0],
-      { role: 'VIEWER', token_version: 1 },
+      { role: 'OPERATOR', token_version: 1 },
     );
     // Simulate a delayed pre-revocation snapshot with a later wall-clock timestamp.
     const row = (
@@ -78,7 +78,7 @@ test('role/version synchronization converges and rejects stale privilege restora
           [id],
         )
       ).rows[0],
-      { role: 'VIEWER', token_version: 1, password_hash: 'fixture-hash' },
+      { role: 'OPERATOR', token_version: 1, password_hash: 'fixture-hash' },
     );
     await b.query(
       "UPDATE users SET role='ADMIN',token_version=token_version+1 WHERE id=$1",

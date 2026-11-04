@@ -77,6 +77,8 @@ export async function applyChange(
       } else {
         if (!change.row_data || change.row_data.id !== change.record_id)
           throw new Error('Invalid change payload');
+        if (change.table_name === 'users' && change.row_data.role === 'VIEWER')
+          change.row_data = { ...change.row_data, role: 'OPERATOR' };
         const quoted = fields.map((field) => `"${field}"`).join(', ');
         const updates = fields
           .filter((field) => field !== 'id')

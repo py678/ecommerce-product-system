@@ -15,12 +15,16 @@ interface AuthFields {
   password: string;
   confirm: string;
   loginRole: UserRole;
+  role: UserRole;
+  companyId?: string;
 }
 
 export function AuthPage({ register = false }: { register?: boolean }) {
   const { user, loading, error, notice, signIn } = useAuth();
   const { message } = App.useApp();
   const location = useLocation();
+  const [form] = Form.useForm<AuthFields>();
+  const registrationRole = Form.useWatch('role', form) ?? 'OPERATOR';
   const [saving, setSaving] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const from: unknown = location.state?.from;
@@ -45,6 +49,8 @@ export function AuthPage({ register = false }: { register?: boolean }) {
             username: values.username,
             email: values.email,
             password: values.password,
+            role: values.role,
+            ...(values.role === 'ADMIN' ? { companyId: values.companyId } : {}),
           })
         : await api.auth.login({
             username: values.username,
@@ -100,7 +106,7 @@ export function AuthPage({ register = false }: { register?: boolean }) {
           <h2>{register ? '创建账号' : '欢迎回来'}</h2>
           <p className="muted">
             {register
-              ? '新账号默认为访客，可查看全部商品和分类。'
+              ? '选择注册身份；注册管理员需验证公司内部 ID。'
               : '登录账号，继续今天的管理工作。'}
           </p>
           {(submitError || notice || error) && (
@@ -114,25 +120,42 @@ export function AuthPage({ register = false }: { register?: boolean }) {
           <Form<AuthFields>
             key={register ? 'register' : 'login'}
             layout="vertical"
-            initialValues={{ loginRole: 'OPERATOR' }}
+            form={form}
+            initialValues={{ loginRole: 'OPERATOR', role: 'OPERATOR' }}
             size="large"
             requiredMark={false}
             onFinish={submit}
             disabled={saving}
           >
-            {!register && (
+            <Form.Item
+              label={register ? '注册身份' : '登录身份'}
+              name={register ? 'role' : 'loginRole'}
+              rules={[{ required: true, message: '请选择登录身份' }]}
+            >
+              <Radio.Group
+                optionType="button"
+                buttonStyle="solid"
+                block
+                options={Object.entries(ROLE_LABELS).map(([value, label]) => ({
+                  value,
+                  label,
+                }))}
+              />
+            </Form.Item>
+            {register && registrationRole === 'ADMIN' && (
               <Form.Item
-                label="登录身份"
-                name="loginRole"
-                rules={[{ required: true, message: '请选择登录身份' }]}
+                label="公司内部 ID"
+                name="companyId"
+                preserve={false}
+                rules={[
+                  { required: true, message: '请输入公司内部 ID' },
+                  { max: 128, message: '公司内部 ID 过长' },
+                ]}
               >
-                <Radio.Group
-                  optionType="button"
-                  buttonStyle="solid"
-                  block
-                  options={Object.entries(ROLE_LABELS).map(
-                    ([value, label]) => ({ value, label }),
-                  )}
+                <Input.Password
+                  autoComplete="off"
+                  placeholder="请输入公司内部 ID"
+                  maxLength={128}
                 />
               </Form.Item>
             )}

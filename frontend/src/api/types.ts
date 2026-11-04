@@ -1,4 +1,4 @@
-export type UserRole = 'VIEWER' | 'OPERATOR' | 'ADMIN';
+export type UserRole = 'OPERATOR' | 'ADMIN';
 export type Permission =
   | 'product:read'
   | 'product:create'

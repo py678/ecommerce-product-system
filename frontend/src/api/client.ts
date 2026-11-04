@@ -103,6 +103,8 @@ export const api = {
       username: string;
       email: string;
       password: string;
+      role?: UserRole;
+      companyId?: string;
     }) => (await http.post<AuthResponse>('/auth/register', input)).data,
     login: async (input: {
       username: string;

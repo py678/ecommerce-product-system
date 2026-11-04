@@ -1,8 +1,11 @@
 import {
+  BadRequestException,
   ConflictException,
+  ServiceUnavailableException,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
+import { createHash, timingSafeEqual } from 'node:crypto';
 import { JwtService } from '@nestjs/jwt';
 import { compare, hash } from 'bcryptjs';
 import { DatabaseService } from '../database/database.service.js';
@@ -25,6 +28,21 @@ export class AuthService {
   ) {}
 
   async register(dto: RegisterDto): Promise<AuthResponseDto> {
+    const role = dto.role ?? 'OPERATOR';
+    if (role === 'ADMIN') {
+      const expected = process.env.ADMIN_REGISTRATION_COMPANY_ID;
+      if (!expected)
+        throw new ServiceUnavailableException(
+          '管理员注册暂不可用，请联系维护人员',
+        );
+      const digest = (value: string) =>
+        createHash('sha256').update(value).digest();
+      if (
+        !dto.companyId ||
+        !timingSafeEqual(digest(dto.companyId), digest(expected))
+      )
+        throw new BadRequestException('公司内部 ID 不正确');
+    }
     const passwordHash = await hash(dto.password, 12);
     try {
       const user = await this.db.user.create({
@@ -32,7 +50,7 @@ export class AuthService {
           username: dto.username,
           email: dto.email,
           passwordHash,
-          role: 'VIEWER',
+          role,
         },
         select: { ...PUBLIC_USER_SELECT, tokenVersion: true },
       });

@@ -148,7 +148,7 @@ export function AdminUsersPage() {
       <div className="page-heading">
         <div>
           <h1>账号管理</h1>
-          <p>管理访客、运营人员与管理员角色。</p>
+          <p>管理运营人员与管理员角色。</p>
         </div>
       </div>
       <Card className="catalog-card">

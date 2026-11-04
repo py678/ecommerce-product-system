@@ -20,8 +20,8 @@ erDiagram
     uuid id PK
     uuid actor_id
     uuid target_id
-    UserRole from_role
-    UserRole to_role
+    varchar_16 from_role
+    varchar_16 to_role
     timestamptz created_at
   }
   categories {
@@ -95,9 +95,9 @@ npm.cmd run start:dev
 2026-10-29 本机验证：初始迁移应用成功，`db:verify` 两组测试通过，`test:e2e` 一项连接测试通过；`db:status` 为最新，数据库与 Prisma schema 比较无差异。PostgreSQL 18 对 RESTRICT 删除返回 `23001`，非法外键插入返回 `23503`。
 
 
-## 三角色迁移
+## 两角色迁移
 
-UserRole 枚举：VIEWER、OPERATOR、ADMIN；users.role 非空且默认 VIEWER。结构迁移 20261104055425_user_roles_and_audit 新增枚举、字段、role_audits 与 (target_id, created_at) 索引；后续 20261104055441_user_roles_and_audit 将已有账号回填 OPERATOR，不修改密码、归属、商品或分类。后续注册仍默认 VIEWER。
+UserRole 枚举仅 OPERATOR、ADMIN；users.role 非空且默认 OPERATOR。20261104081128_two_roles_admin_registration 在事务中将旧只读账号转换为运营人员并递增 token_version，原有运营人员及管理员不变。role_audits.from_role/to_role 从枚举转换为 VARCHAR(16)，保留历史审计原文；其他账号、密码、商品、分类、同步触发器与索引保留。已应用迁移文件不可改写，空库需按完整迁移链部署。
 
 role_audits 保存 actor_id、target_id、from_role、to_role、created_at，不存密码/令牌，标识不设置级联外键，保留历史操作依据。审计只在发起操作的库落地，用户角色和版本通过现有同步桥传播。
 

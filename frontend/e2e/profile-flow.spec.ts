@@ -34,7 +34,7 @@ test('edits email, changes password, rejects old credentials and signs in again'
   });
   try {
     await page.goto('/login');
-    await page.getByText('访客', { exact: true }).click();
+    await page.getByText('运营人员', { exact: true }).click();
     await page.getByLabel('用户名', { exact: true }).fill(username);
     await page.getByLabel('密码', { exact: true }).fill(original);
     await page.getByRole('button', { name: '登录工作台' }).click();
@@ -76,7 +76,7 @@ test('edits email, changes password, rejects old credentials and signs in again'
       ).status(),
     ).toBe(401);
     await page.getByLabel('用户名', { exact: true }).fill(username);
-    await page.getByText('访客', { exact: true }).click();
+    await page.getByText('运营人员', { exact: true }).click();
     await page.getByLabel('密码', { exact: true }).fill(next);
     await page.getByRole('button', { name: '登录工作台' }).click();
     await expect(

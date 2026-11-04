@@ -125,7 +125,7 @@ test.afterAll(async () => {
   }
 });
 
-test('registers a viewer, then manages categories/products as an administrator', async ({
+test('registers an operator, then manages categories/products as an administrator', async ({
   page,
 }, testInfo) => {
   const errors: string[] = [];
@@ -144,9 +144,7 @@ test('registers a viewer, then manages categories/products as an administrator',
     page.getByRole('heading', { name: '商品管理', exact: true }),
   ).toBeVisible();
 
-  await expect(
-    page.getByRole('button', { name: '新建商品' }),
-  ).not.toBeVisible();
+  await expect(page.getByRole('button', { name: '新建商品' })).toBeVisible();
   await page.getByRole('button', { name: '退出', exact: true }).click();
   await login(page);
   await page.getByRole('menuitem', { name: '分类管理' }).click();

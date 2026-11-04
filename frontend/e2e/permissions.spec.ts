@@ -1,7 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 const rolePermissions = {
-  VIEWER: ['product:read', 'category:read'],
   OPERATOR: [
     'product:read',
     'product:create',
@@ -75,35 +74,6 @@ async function setup(page: Page, role: keyof typeof rolePermissions) {
   );
   return { user, product };
 }
-test('viewer has read-only controls and cannot navigate directly to account management', async ({
-  page,
-}) => {
-  await setup(page, 'VIEWER');
-  let requests = 0;
-  await page.route('**/api/admin/users?*', (r) => {
-    requests++;
-    return r.fulfill({ json: { items: [], total: 0 } });
-  });
-  await page.goto('/products');
-  await expect(
-    page.getByText('Permission product', { exact: true }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole('button', { name: '新建商品' }),
-  ).not.toBeVisible();
-  await expect(
-    page.getByRole('button', { name: '编辑', exact: true }),
-  ).not.toBeVisible();
-  await expect(
-    page.getByRole('button', { name: '删除', exact: true }),
-  ).not.toBeVisible();
-  await expect(
-    page.getByRole('menuitem', { name: '账号管理' }),
-  ).not.toBeVisible();
-  await page.goto('/admin/users');
-  await expect(page.getByText('没有访问权限', { exact: true })).toBeVisible();
-  expect(requests).toBe(0);
-});
 test('operator can manage owned products but cannot maintain shared categories', async ({
   page,
 }) => {
@@ -120,6 +90,8 @@ test('operator can manage owned products but cannot maintain shared categories',
   await expect(
     page.getByRole('button', { name: '新建分类' }),
   ).not.toBeVisible();
+  await page.goto('/admin/users');
+  await expect(page.getByText('没有访问权限', { exact: true })).toBeVisible();
 });
 test('administrator can edit a foreign product', async ({ page }) => {
   const { product } = await setup(page, 'ADMIN');
@@ -169,9 +141,9 @@ test('administrator filters accounts and confirms role changes with loading feed
   });
   await page.route('**/api/admin/users/*/role', async (r) => {
     changes++;
-    expect(r.request().postDataJSON()).toEqual({ role: 'VIEWER' });
+    expect(r.request().postDataJSON()).toEqual({ role: 'ADMIN' });
     await pending;
-    targetRole = 'VIEWER';
+    targetRole = 'ADMIN';
     await r.fulfill({ json: { ...target, role: targetRole } });
   });
   await page.goto('/admin/users');
@@ -182,7 +154,7 @@ test('administrator filters accounts and confirms role changes with loading feed
   await expect(modal.getByText('请选择不同的角色')).toBeVisible();
   expect(changes).toBe(0);
   await modal.getByRole('combobox').click();
-  await page.getByRole('option', { name: '访客', exact: true }).click();
+  await page.getByRole('option', { name: '管理员', exact: true }).click();
   await modal.getByRole('button', { name: '确认修改并使旧会话失效' }).click();
   await expect(
     modal.getByRole('button', { name: '确认修改并使旧会话失效' }),
@@ -194,10 +166,10 @@ test('administrator filters accounts and confirms role changes with loading feed
   const request = page.waitForRequest(
     (r) =>
       r.url().includes('/api/admin/users?') &&
-      new URL(r.url()).searchParams.get('role') === 'VIEWER',
+      new URL(r.url()).searchParams.get('role') === 'ADMIN',
   );
   await page.getByRole('combobox', { name: '角色筛选' }).click();
-  await page.getByRole('option', { name: '访客', exact: true }).click();
+  await page.getByRole('option', { name: '管理员', exact: true }).click();
   await request;
 });
 test('revoked security credentials clear the session and redirect to login', async ({
@@ -227,7 +199,7 @@ test('revoked security credentials clear the session and redirect to login', asy
   ).toBeNull();
 });
 
-for (const role of ['VIEWER', 'OPERATOR'] as const) {
+for (const role of ['OPERATOR'] as const) {
   test(
     role + ' can view a foreign product but has no edit/delete actions',
     async ({ page }) => {
@@ -261,7 +233,6 @@ for (const role of ['VIEWER', 'OPERATOR'] as const) {
   );
 }
 for (const [role, label] of Object.entries({
-  VIEWER: '访客',
   OPERATOR: '运营人员',
   ADMIN: '管理员',
 })) {
@@ -302,3 +273,81 @@ for (const [role, label] of Object.entries({
     },
   );
 }
+
+test('administrator registration requires a company identifier and preserves fields on rejection', async ({
+  page,
+}) => {
+  let requests = 0;
+  await page.route('**/api/auth/register', async (r) => {
+    requests++;
+    expect(r.request().postDataJSON()).toEqual({
+      username: 'new_admin',
+      email: 'new-admin@example.invalid',
+      password: 'Example-password-123!',
+      role: 'ADMIN',
+      companyId: 'wrong-company',
+    });
+    await r.fulfill({ status: 400, json: { message: '公司内部 ID 不正确' } });
+  });
+  await page.goto('/register');
+  await expect(page.getByText('访客', { exact: true })).toHaveCount(0);
+  await expect(page.getByLabel('公司内部 ID', { exact: true })).toHaveCount(0);
+  await page.getByText('管理员', { exact: true }).click();
+  await page.getByLabel('用户名', { exact: true }).fill('new_admin');
+  await page
+    .getByLabel('邮箱', { exact: true })
+    .fill('new-admin@example.invalid');
+  await page.getByLabel('密码', { exact: true }).fill('Example-password-123!');
+  await page
+    .getByLabel('确认密码', { exact: true })
+    .fill('Example-password-123!');
+  await page.getByRole('button', { name: '注册并进入工作台' }).click();
+  await expect(
+    page.getByText('请输入公司内部 ID', { exact: true }),
+  ).toBeVisible();
+  expect(requests).toBe(0);
+  await page.getByLabel('公司内部 ID', { exact: true }).fill('wrong-company');
+  await page.getByRole('button', { name: '注册并进入工作台' }).click();
+  await expect(
+    page.getByText('公司内部 ID 不正确', { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByLabel('用户名', { exact: true })).toHaveValue(
+    'new_admin',
+  );
+  expect(
+    await page.evaluate(() => sessionStorage.getItem('silk-shop.access-token')),
+  ).toBeNull();
+  await page.getByText('运营人员', { exact: true }).click();
+  await expect(page.getByLabel('公司内部 ID', { exact: true })).toHaveCount(0);
+});
+test('operator registration omits a company identifier after switching roles', async ({
+  page,
+}) => {
+  await page.route('**/api/auth/register', async (r) => {
+    expect(r.request().postDataJSON()).toEqual({
+      username: 'new_operator',
+      email: 'new-operator@example.invalid',
+      password: 'Example-password-123!',
+      role: 'OPERATOR',
+    });
+    await r.fulfill({ status: 409, json: { message: '用户名或邮箱已被使用' } });
+  });
+  await page.goto('/register');
+  await page.getByText('管理员', { exact: true }).click();
+  await page
+    .getByLabel('公司内部 ID', { exact: true })
+    .fill('must-not-be-submitted');
+  await page.getByText('运营人员', { exact: true }).click();
+  await page.getByLabel('用户名', { exact: true }).fill('new_operator');
+  await page
+    .getByLabel('邮箱', { exact: true })
+    .fill('new-operator@example.invalid');
+  await page.getByLabel('密码', { exact: true }).fill('Example-password-123!');
+  await page
+    .getByLabel('确认密码', { exact: true })
+    .fill('Example-password-123!');
+  await page.getByRole('button', { name: '注册并进入工作台' }).click();
+  await expect(
+    page.getByText('用户名或邮箱已被使用', { exact: true }),
+  ).toBeVisible();
+});

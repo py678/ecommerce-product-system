@@ -21,8 +21,8 @@ Swagger 页面：`http://localhost:3000/docs`；OpenAPI JSON：`http://localhost
 
 | 方法与路径 | 请求 | 成功结果 |
 | --- | --- | --- |
-| POST /auth/register | username、email、password | 201；用户资料与访问令牌 |
-| POST /auth/login | username、password、可选 loginRole（VIEWER/OPERATOR/ADMIN） | 200；用户资料与访问令牌 |
+| POST /auth/register | username、email、password、可选 role（OPERATOR/ADMIN）、管理员所需 companyId | 201；用户资料与访问令牌 |
+| POST /auth/login | username、password、可选 loginRole（OPERATOR/ADMIN） | 200；用户资料与访问令牌 |
 | GET /auth/me | Authorization: Bearer <accessToken> | 200；当前用户资料 |
 
 在 Swagger 展开接口，点击 Try it out 填写请求；注册/登录成功后，复制响应中的 `accessToken`，在页面的 Authorize 中粘贴令牌即可调用 `/api/auth/me`。不要把令牌粘贴到提交记录或文档。
@@ -39,7 +39,7 @@ Swagger 页面：`http://localhost:3000/docs`；OpenAPI JSON：`http://localhost
 
 用户名去除首尾空白，长度 3–64 字符，允许字母（含中文）、数字、下划线和连字符，区分大小写。邮箱去除首尾空白并转小写，最长 254 字符。密码至少 8 字符、最多 72 UTF-8 字节，不允许全空白，不做 trim，使用 BCrypt cost 12 存储。请求不得携带额外字段，例如 `isAdmin`。
 
-认证响应字段：`accessToken`、`tokenType`（Bearer）、`expiresIn`（秒）、`user`。用户资料仅包括 `id`、`username`、`email`、`createdAt`、`updatedAt`，不会返回密码或哈希。注册后自动登录，令牌默认有效一小时。
+认证响应字段：`accessToken`、`tokenType`（Bearer）、`expiresIn`（秒）、`user`。用户资料仅包括 `id`、`username`、`email`、`role`、`permissions`、`createdAt`、`updatedAt`，不会返回密码或哈希。注册后自动登录，令牌默认有效一小时。
 
 | 状态码 | 含义 |
 | --- | --- |
@@ -48,7 +48,7 @@ Swagger 页面：`http://localhost:3000/docs`；OpenAPI JSON：`http://localhost
 | 409 | 用户名或归一化邮箱重复，并发注册也受数据库唯一约束保护 |
 | 429 | 注册超过每分钟 5 次或登录超过每分钟 10 次；按客户端地址及接口计数，含失败请求 |
 
-错误使用 Nest 标准 JSON：`statusCode`、`message`、`error`。登录失败对未知账号和错误密码统一提示。密码验证成功后，如可选 loginRole 与数据库角色不匹配，返回 401“账号角色与所选登录入口不匹配，请选择正确入口”，不签发凭证、不改变角色；非法枚举返回 400。登录页三种入口固定提交对应 loginRole，省略字段兼容既有 API 客户端。限流为单进程内存存储，重启后清空；多实例部署时需更换共享存储。本项目目前使用本机直连，不信任客户端自行提供的转发地址头。
+错误使用 Nest 标准 JSON：`statusCode`、`message`、`error`。登录失败对未知账号和错误密码统一提示。密码验证成功后，如可选 loginRole 与数据库角色不匹配，返回 401“账号角色与所选登录入口不匹配，请选择正确入口”，不签发凭证、不改变角色；非法枚举返回 400。登录页两种入口固定提交对应 loginRole，省略字段兼容既有 API 客户端。限流为单进程内存存储，重启后清空；多实例部署时需更换共享存储。本项目目前使用本机直连，不信任客户端自行提供的转发地址头。
 
 JWT 使用 HS256，只接受匹配本系统 issuer/audience、包含有效用户 ID、有效期及整数 tokenVersion 且签名正确的令牌。验证签名和有效期后，每次鉴权直查数据库确认用户仍存在且版本相同。注册自动登录和普通登录均签发当前版本；缺少版本的历史令牌直接返回 401，升级后原有会话需重新登录。版本不匹配时返回 401，message 为“账号安全信息已变更，请重新登录”，附带 `code: SESSION_REVOKED`。目前不加缓存或 Redis。
 
@@ -105,7 +105,7 @@ JWT 使用 HS256，只接受匹配本系统 issuer/audience、包含有效用户
 
 ## 商品接口
 
-所有商品接口均需 Bearer 令牌。所有登录角色均可查看全部商品列表和详情；访客只读，运营人员可创建并管理自己的商品，管理员可管理全部商品。创建者从令牌确定，包括管理员创建商品时也固定为当前账号；编辑他人商品不改变归属。客户端不能指定或修改 userId、creatorId、role。列表与总数统计强制共用同一份筛选 where，不按创建者限制读取范围。
+所有商品接口均需 Bearer 令牌。所有登录角色均可查看全部商品列表和详情；运营人员可创建并管理自己的商品，管理员可管理全部商品。创建者从令牌确定，包括管理员创建商品时也固定为当前账号；编辑他人商品不改变归属。客户端不能指定或修改 userId、creatorId、role。列表与总数统计强制共用同一份筛选 where，不按创建者限制读取范围。
 
 | 方法与路径 | 用途 | 成功结果 |
 | --- | --- | --- |
@@ -169,7 +169,7 @@ PATCH 只能提交 name、description、coverImage、price、stock、categoryId 
 
 ## 管理员账号与角色权限
 
-公开用户资料（登录/注册、auth/me、users/me、账号管理）新增只读 role 与 permissions，不返回 passwordHash 或 tokenVersion。角色为 VIEWER（访客）、OPERATOR（运营人员）、ADMIN（管理员）。新注册强制 VIEWER，注册/个人资料中夹带 role 返回 400。权限矩阵见 [角色权限说明](rbac.md)。Swagger 的业务操作带 x-permissions 标记；JWT 之后由 PermissionsGuard 校验。
+公开用户资料（登录/注册、auth/me、users/me、账号管理）新增只读 role 与 permissions，不返回 passwordHash 或 tokenVersion。角色为 OPERATOR（运营人员）、ADMIN（管理员）。注册支持 role，默认 OPERATOR；ADMIN 必须通过公司内部 ID 验证；个人资料中夹带 role 仍返回 400。权限矩阵见 [角色权限说明](rbac.md)。Swagger 的业务操作带 x-permissions 标记；JWT 之后由 PermissionsGuard 校验。
 
 | 方法与路径（包含 /api 前缀） | 参数 | 返回与权限 |
 | --- | --- | --- |
@@ -178,4 +178,9 @@ PATCH 只能提交 name、description、coverImage、price、stock、categoryId 
 
 账号列表与总数使用相同筛选条件及 Repeatable Read 快照。角色修改禁止自改、无变化、非法枚举及额外字段（400）；目标不存在 404，最后管理员保护返回 409。角色变化、tokenVersion 递增与 role_audits 写入同一事务；数据库事务锁串行化该库内的角色调整，并在锁内重新校验操作者仍是管理员。审计失败时全部回滚。不返回新 token，目标账号下一次受保护请求返回 401 后必须重新登录。
 
-上传要求 upload:image（运营人员、管理员）；访客直接请求返回 403。个人中心不需要额外权限点，但只操作 JWT 当前账号。所有业务 DTO 复用严格白名单，非契约字段返回 400；独立 AssignRoleDto 只在管理员角色接口允许 role。
+上传要求 upload:image（运营人员、管理员）。个人中心不需要额外权限点，但只操作 JWT 当前账号。所有业务 DTO 复用严格白名单，非契约字段返回 400；注册 DTO 接受 role 与只写 companyId；已有用户的角色仅允许通过管理员接口的 AssignRoleDto 修改。
+
+
+## 两角色注册
+
+POST /api/auth/register 的 role 可省略（默认 OPERATOR），或为 OPERATOR / ADMIN；公司内部 ID 使用字符串字段 companyId。ADMIN 需提供与后端私有环境变量 ADMIN_REGISTRATION_COMPANY_ID 完全一致的值；缺失或错误返回 400“公司内部 ID 不正确”，未配置则返回 503。OPERATOR 无需 companyId。非法角色、额外归属/安全字段返回 400。正确注册返回 201 并自动登录，账号角色与权限来自服务端。companyId 不写入数据库、响应、前端构建或日志；实际值不得提交。管理员注册继续受每 IP 每分钟 5 次注册限流。

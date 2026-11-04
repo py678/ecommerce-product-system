@@ -19,7 +19,7 @@ flowchart LR
 - `DatabaseModule`：管理 Prisma 生命周期，启动连接、关闭时释放连接池。
 - `AuthModule`：注册、登录、当前用户；导出 JWT Guard 与 PermissionsGuard，提供当前数据库角色及静态权限映射。
 - `CategoriesModule`：分类全局可读，写入仅管理员；分页搜索、商品数量；通过数据库外键阻止删除引用中的分类。
-- `ProductsModule`：商品列表和详情供所有登录角色共享查看；列表和计数共用筛选 where；写条件单独附带归属，管理员可写全部，运营人员仅自己，访客只读。
+- `ProductsModule`：商品列表和详情供所有登录角色共享查看；列表和计数共用筛选 where；写条件单独附带归属，管理员可写全部，运营人员仅自己。
 - `configure-app.ts`：统一 `/api` 前缀、DTO 验证、CORS 和 Swagger，并与集成测试共用配置。
 - `prisma/`：schema 与版本迁移；开发迁移使用独立影子库。
 - `test/`：真实数据库 HTTP 测试；`scripts/`：建库及底层数据库约束验证。
@@ -59,3 +59,5 @@ UsersModule 仅允许基于 JWT 身份查看资料、修改邮箱与独立改密
 前端 RequirePermission 控制直接路由访问，can/canManageProduct 控制菜单和操作入口；这些仅改善界面，后端独立鉴权。角色调整与审计/版本递增采用单库事务，受控首次管理员脚本复用同一事务锁。同步桥传递 role 并保护较高版本的角色和密码；审计记录保留在发起操作的数据库。异步双库不提供跨库角色变更串行化，详见 [RBAC](rbac.md)。
 
 登录页通过 loginRole 声明所选入口，AuthService 在密码核验成功后比对数据库角色；令牌及权限仍来自数据库，入口选择不会提升角色。旧客户端可省略 loginRole。
+
+注册提供 OPERATOR 与 ADMIN 选择，默认 OPERATOR。管理员注册在服务端验证 ADMIN_REGISTRATION_COMPANY_ID；未配置时关闭管理员注册，校验值不存数据库、不返回、不写入前端。历史角色审计列改为文本以保留原始证据，当前用户角色枚举只保留两项。

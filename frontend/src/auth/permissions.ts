@@ -1,6 +1,5 @@
 import type { Permission, User, UserRole } from '../api/types';
 export const ROLE_LABELS: Record<UserRole, string> = {
-  VIEWER: '访客',
   OPERATOR: '运营人员',
   ADMIN: '管理员',
 };
