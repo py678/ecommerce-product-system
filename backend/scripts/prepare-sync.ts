@@ -85,19 +85,33 @@ try {
       `sync-merge-${old.id}`,
       `sync-merge-${old.id}@example.invalid`,
     ]);
+    // Preserve all supported security fields, while allowing pre-upgrade merge fixtures.
+    const fields = [
+      'id',
+      'username',
+      'email',
+      'password_hash',
+      'token_version',
+      'role',
+      'created_at',
+      'updated_at',
+    ].filter((field) => Object.hasOwn(canonical, field));
+    const columns = fields.map((field) => '"' + field + '"').join(',');
+    const placeholders = fields
+      .map((_field, index) => '$' + (index + 1))
+      .join(',');
+    const updates = fields
+      .filter((field) => field !== 'id')
+      .map((field) => '"' + field + '"=EXCLUDED."' + field + '"')
+      .join(',');
     await peer.query(
-      `INSERT INTO users (id,username,email,password_hash,created_at,updated_at)
-       VALUES ($1,$2,$3,$4,$5,$6)
-       ON CONFLICT (id) DO UPDATE SET username=EXCLUDED.username,email=EXCLUDED.email,
-         password_hash=EXCLUDED.password_hash,updated_at=EXCLUDED.updated_at`,
-      [
-        canonical.id,
-        canonical.username,
-        canonical.email,
-        canonical.password_hash,
-        canonical.created_at,
-        canonical.updated_at,
-      ],
+      'INSERT INTO users (' +
+        columns +
+        ') VALUES (' +
+        placeholders +
+        ') ON CONFLICT (id) DO UPDATE SET ' +
+        updates,
+      fields.map((field) => canonical[field]),
     );
     await peer.query('UPDATE products SET user_id=$2 WHERE user_id=$1', [
       old.id,

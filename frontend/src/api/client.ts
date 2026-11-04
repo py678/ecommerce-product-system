@@ -2,6 +2,8 @@ import axios from 'axios';
 import { sessionToken, expireSession } from '../auth/session';
 import type {
   AuthResponse,
+  AdminUserQuery,
+  UserRole,
   ImageUploadResponse,
   Category,
   ListQuery,
@@ -38,9 +40,12 @@ http.interceptors.response.use(
         error.config?.headers.get('Authorization') === `Bearer ${token}`
       ) {
         expireSession(
-          error.response.data?.message === '密码已修改，请重新登录'
+          error.response.data?.message === '密码已修改，请重新登录' ||
+            error.config?.url === '/users/me/password'
             ? 'passwordChanged'
-            : 'expired',
+            : error.response.data?.code === 'SESSION_REVOKED'
+              ? 'securityChanged'
+              : 'expired',
         );
       }
     }
@@ -50,6 +55,7 @@ http.interceptors.response.use(
 
 export function errorMessage(error: unknown): string {
   if (axios.isAxiosError(error)) {
+    if (error.response?.status === 403) return '没有执行此操作的权限';
     const message: unknown = error.response?.data?.message;
     if (typeof message === 'string') return message;
     if (Array.isArray(message))
@@ -63,6 +69,12 @@ export function errorMessage(error: unknown): string {
 export const isCanceled = axios.isCancel;
 
 export const api = {
+  adminUsers: {
+    list: async (params: AdminUserQuery, signal?: AbortSignal) =>
+      (await http.get<Page<User>>('/admin/users', { params, signal })).data,
+    assignRole: async (id: string, role: UserRole) =>
+      (await http.patch<User>(`/admin/users/${id}/role`, { role })).data,
+  },
   users: {
     me: async (signal?: AbortSignal) =>
       (await http.get<User>('/users/me', { signal })).data,

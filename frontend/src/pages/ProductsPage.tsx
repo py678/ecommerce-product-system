@@ -1,15 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  App,
-  Button,
-  Card,
-  Empty,
-  Popconfirm,
-  Space,
-  Table,
-  Tag,
-  Tooltip,
-} from 'antd';
+import { App, Button, Card, Empty, Popconfirm, Space, Table, Tag } from 'antd';
 import type { TableColumnsType } from 'antd';
 import {
   AppstoreOutlined,
@@ -19,6 +9,7 @@ import {
 import { Link, useSearchParams } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 import type { ProductListQuery, Product } from '../api/types';
+import { can, canManageProduct } from '../auth/permissions';
 import { useAuth } from '../auth/useAuth';
 import { useResource } from '../hooks/useResource';
 import { ProductListFilters } from '../components/ProductListFilters';
@@ -145,7 +136,7 @@ export function ProductsPage() {
       ),
     },
     {
-      title: '创建者',
+      title: '所属用户',
       key: 'user',
       width: 140,
       render: (_value, item) => (
@@ -170,38 +161,41 @@ export function ProductsPage() {
       fixed: 'right',
       width: 180,
       render: (_value, item) => {
-        const owned = item.userId === user?.id;
+        const editable = canManageProduct(user, item.userId, 'product:update');
+        const removable = canManageProduct(user, item.userId, 'product:delete');
         return (
           <Space size={2}>
             <Link to={`/products/${item.id}`}>详情</Link>
-            <Tooltip title={owned ? undefined : '仅创建者可编辑'}>
+            {editable && (
               <Button
                 type="link"
                 size="small"
-                disabled={!owned}
+                disabled={!editable}
                 onClick={() => setModal({ product: item })}
               >
                 编辑
               </Button>
-            </Tooltip>
-            <Popconfirm
-              title="确认删除商品？"
-              description="删除后无法恢复。"
-              okText="删除"
-              cancelText="取消"
-              disabled={!owned || !!deleting}
-              onConfirm={() => remove(item)}
-            >
-              <Button
-                type="link"
-                size="small"
-                danger
-                disabled={!owned || !!deleting}
-                loading={deleting === item.id}
+            )}
+            {removable && (
+              <Popconfirm
+                title="确认删除商品？"
+                description="删除后无法恢复。"
+                okText="删除"
+                cancelText="取消"
+                disabled={!removable || !!deleting}
+                onConfirm={() => remove(item)}
               >
-                删除
-              </Button>
-            </Popconfirm>
+                <Button
+                  type="link"
+                  size="small"
+                  danger
+                  disabled={!removable || !!deleting}
+                  loading={deleting === item.id}
+                >
+                  删除
+                </Button>
+              </Popconfirm>
+            )}
           </Space>
         );
       },
@@ -214,16 +208,22 @@ export function ProductsPage() {
         <div>
           <span className="eyebrow">PRODUCT CATALOG</span>
           <h1>商品管理</h1>
-          <p>查看全部商品，管理自己创建的商品。</p>
+          <p>
+            {user?.role === 'ADMIN'
+              ? '查看并管理所有成员的商品。'
+              : '查看和管理自己创建的商品。'}
+          </p>
         </div>
-        <Button
-          type="primary"
-          size="large"
-          icon={<PlusOutlined />}
-          onClick={() => setModal({})}
-        >
-          新建商品
-        </Button>
+        {can(user, 'product:create') && (
+          <Button
+            type="primary"
+            size="large"
+            icon={<PlusOutlined />}
+            onClick={() => setModal({})}
+          >
+            新建商品
+          </Button>
+        )}
       </div>
       <Card className="catalog-card">
         <div className="list-toolbar">
@@ -264,7 +264,7 @@ export function ProductsPage() {
                           query.maxPrice ||
                           query.stockStatus
                         ? '没有找到符合条件的商品'
-                        : '还没有商品，先创建一件吧'
+                        : '暂无可访问的商品'
                 }
               />
             ),

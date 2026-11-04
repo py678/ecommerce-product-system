@@ -7,7 +7,7 @@ import {
 import { compare, hash } from 'bcryptjs';
 import { DatabaseService } from '../database/database.service.js';
 import { Prisma } from '../generated/prisma/client.js';
-import { PUBLIC_USER_SELECT } from '../auth/public-user.js';
+import { PUBLIC_USER_SELECT, publicUser } from '../auth/public-user.js';
 import type { UserResponseDto } from '../auth/dto/auth-response.dto.js';
 import type { ChangePasswordDto, UpdateProfileDto } from './dto/user.dto.js';
 
@@ -22,11 +22,13 @@ export class UsersService {
     dto: UpdateProfileDto,
   ): Promise<UserResponseDto> {
     try {
-      return await this.db.user.update({
-        where: { id },
-        data: { email: dto.email },
-        select: PUBLIC_USER_SELECT,
-      });
+      return publicUser(
+        await this.db.user.update({
+          where: { id },
+          data: { email: dto.email },
+          select: PUBLIC_USER_SELECT,
+        }),
+      );
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError) {
         if (error.code === 'P2002') throw new ConflictException('邮箱已被使用');

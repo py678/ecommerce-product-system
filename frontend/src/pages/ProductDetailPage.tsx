@@ -7,6 +7,7 @@ import {
 } from '@ant-design/icons';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
+import { canManageProduct } from '../auth/permissions';
 import { useAuth } from '../auth/useAuth';
 import { useResource } from '../hooks/useResource';
 import { LoadingScreen, RequestError } from '../components/PageFeedback';
@@ -35,6 +36,8 @@ export function ProductDetailPage() {
       </>
     );
   const owned = product.userId === user?.id;
+  const editable = canManageProduct(user, product.userId, 'product:update');
+  const removable = canManageProduct(user, product.userId, 'product:delete');
 
   async function remove() {
     if (!product) return;
@@ -62,32 +65,36 @@ export function ProductDetailPage() {
           <p>商品详情与库存信息</p>
         </div>
         <Space>
-          <Button
-            size="large"
-            icon={<EditOutlined />}
-            disabled={!owned}
-            onClick={() => setEditing(true)}
-          >
-            编辑商品
-          </Button>
-          <Popconfirm
-            title="确认删除商品？"
-            description="删除后无法恢复。"
-            okText="删除"
-            cancelText="取消"
-            onConfirm={remove}
-            disabled={!owned}
-          >
+          {editable && (
             <Button
               size="large"
-              danger
-              icon={<DeleteOutlined />}
-              disabled={!owned}
-              loading={deleting}
+              icon={<EditOutlined />}
+              disabled={!editable}
+              onClick={() => setEditing(true)}
             >
-              删除商品
+              编辑商品
             </Button>
-          </Popconfirm>
+          )}
+          {removable && (
+            <Popconfirm
+              title="确认删除商品？"
+              description="删除后无法恢复。"
+              okText="删除"
+              cancelText="取消"
+              onConfirm={remove}
+              disabled={!removable}
+            >
+              <Button
+                size="large"
+                danger
+                icon={<DeleteOutlined />}
+                disabled={!removable}
+                loading={deleting}
+              >
+                删除商品
+              </Button>
+            </Popconfirm>
+          )}
         </Space>
       </div>
       <div className="detail-metrics">
@@ -151,9 +158,9 @@ export function ProductDetailPage() {
           ]}
         />
       </Card>
-      {!owned && (
+      {!editable && (
         <p className="muted ownership-note">
-          这件商品由其他成员创建，你可以查看，编辑和删除由创建者操作。
+          当前账号仅可查看商品，无法编辑或删除。
         </p>
       )}
       {editing && (

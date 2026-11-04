@@ -10,6 +10,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiBadRequestResponse,
+  ApiForbiddenResponse,
   ApiBearerAuth,
   ApiBody,
   ApiConsumes,
@@ -19,6 +20,8 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+import { PermissionsGuard } from '../auth/permissions.guard.js';
+import { RequirePermissions } from '../auth/permissions.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { UploadService } from './upload.service.js';
 import { MAX_IMAGE_BYTES } from './upload.config.js';
@@ -26,7 +29,8 @@ import { UploadResponseDto } from './dto/upload-response.dto.js';
 
 @ApiTags('upload')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@ApiForbiddenResponse({ description: '没有执行此操作的权限' })
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('upload')
 export class UploadController {
   constructor(private readonly uploads: UploadService) {}
@@ -51,6 +55,7 @@ export class UploadController {
   @ApiUnauthorizedResponse({ description: '缺少或无效的 JWT' })
   @ApiBadRequestResponse({ description: '缺少文件、格式错误或文件字段不合法' })
   @ApiResponse({ status: 413, description: '文件超过 5MB' })
+  @RequirePermissions('upload:image')
   async image(
     @UploadedFile() file?: Express.Multer.File,
   ): Promise<UploadResponseDto> {

@@ -7,7 +7,7 @@
 
 已完成数据库、注册登录、JWT、商品/分类 CRUD、商品封面上传与预览、分页搜索、Swagger、React 管理页面和 Docker Compose 联合启动。Linux 容器内 98 项接口测试、2 项数据库测试及通过 Nginx 入口的 4 组 Edge 浏览器流程通过。
 
-前后端启动后访问 [管理后台](http://localhost:5173)，首次使用自行注册账号。商品可共享查看，仅创建者可修改和删除；分类由所有成员共享维护。本地配置、验证及生产部署注意事项见 [启动指南](docs/local-start.md)。
+前后端启动后访问 [管理后台](http://localhost:5173)，首次使用自行注册账号。访客只读自己的商品，运营人员管理自己的商品，管理员管理全部商品；分类全局可读，仅管理员维护。新注册默认访客，已有账号升级为运营人员。本地配置、验证及生产部署注意事项见 [启动指南](docs/local-start.md)。
 
 容器启动：在根目录执行 `node scripts/setup-compose.ts`、`docker compose up -d --build`，访问 http://localhost:8088。需要已运行的 Docker Linux 引擎；完整步骤与数据维护见 [Docker 部署指南](docs/deployment.md)。默认两套数据库独立；可通过 `docker-compose.sync.yml` 启用双向同步，让本机 Prisma Studio 与 8088 后台共享业务数据。
 
@@ -45,6 +45,10 @@ npm.cmd run start:dev
 ## 商品筛选与排序
 
 名称、分类、闭区间价格、库存组合筛选，支持排序、URL 条件恢复和 300ms 防抖。参数兼容、文件清单与部署说明见 [商品筛选与排序](docs/product-filters.md)。
+
+## 角色权限
+
+已实现三角色权限点、后端 Guard 与资源归属、管理员账号管理和角色变更撤销旧会话。首次管理员需受控脚本设置；迁移、权限矩阵与部署步骤见 [角色权限说明](docs/rbac.md)。
 
 ## 个人中心
 

@@ -183,6 +183,20 @@ test('two independent PostgreSQL databases converge without losing pending chang
           'utf8',
         ),
       );
+    for (const db of [a, b])
+      for (const name of [
+        '20261104055425_user_roles_and_audit',
+        '20261104055441_user_roles_and_audit',
+      ])
+        await db.query(
+          await readFile(
+            new URL(
+              '../prisma/migrations/' + name + '/migration.sql',
+              import.meta.url,
+            ),
+            'utf8',
+          ),
+        );
     await t.test('migration bootstraps existing rows', async () => {
       await rounds();
       assert.equal(

@@ -25,6 +25,8 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+import { PermissionsGuard } from '../auth/permissions.guard.js';
+import { RequirePermissions } from '../auth/permissions.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import type { AuthenticatedRequest } from '../auth/jwt-auth.guard.js';
 import { ProductsService } from './products.service.js';
@@ -39,8 +41,11 @@ import {
 @ApiTags('商品')
 @ApiBearerAuth()
 @ApiUnauthorizedResponse({ description: '请先登录' })
-@ApiBadRequestResponse({ description: '输入、分页参数或分类无效' })
-@UseGuards(JwtAuthGuard)
+@ApiBadRequestResponse({
+  description: '输入、分页参数或分类无效；拒绝归属及角色字段',
+})
+@ApiForbiddenResponse({ description: '没有执行此操作的权限' })
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('products')
 export class ProductsController {
   constructor(private readonly products: ProductsService) {}
@@ -48,50 +53,61 @@ export class ProductsController {
   @Post()
   @ApiOperation({ summary: '创建商品，创建者自动设为当前用户' })
   @ApiCreatedResponse({ type: ProductResponseDto })
+  @RequirePermissions('product:create')
   create(@Req() request: AuthenticatedRequest, @Body() dto: CreateProductDto) {
     return this.products.create(request.user.id, dto);
   }
 
   @Get()
   @ApiOperation({
-    summary: '商品组合筛选与白名单排序（名称、分类、价格、库存）',
+    summary: '商品筛选排序；管理员访问全部，其余仅自己，列表与总数同范围',
   })
   @ApiOkResponse({ type: ProductPageDto })
-  findAll(@Query() query: ProductQueryDto) {
-    return this.products.findAll(query);
+  @RequirePermissions('product:read')
+  findAll(
+    @Query() query: ProductQueryDto,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.products.findAll(query, request.user);
   }
 
   @Get(':id')
   @ApiOperation({ summary: '查看商品详情' })
   @ApiOkResponse({ type: ProductResponseDto })
-  @ApiNotFoundResponse({ description: '商品不存在' })
-  findOne(@Param('id', ParseUUIDPipe) id: string) {
-    return this.products.findOne(id);
+  @ApiNotFoundResponse({ description: '商品不存在或不在可访问范围内' })
+  @RequirePermissions('product:read')
+  findOne(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.products.findOne(id, request.user);
   }
 
   @Patch(':id')
-  @ApiOperation({ summary: '编辑自己创建的商品' })
+  @ApiOperation({ summary: '编辑商品；管理员可编辑全部，其余仅自己' })
   @ApiOkResponse({ type: ProductResponseDto })
-  @ApiForbiddenResponse({ description: '商品属于其他用户' })
-  @ApiNotFoundResponse({ description: '商品不存在' })
+  @ApiForbiddenResponse({ description: '没有执行此操作的权限' })
+  @ApiNotFoundResponse({ description: '商品不存在或不在可访问范围内' })
+  @RequirePermissions('product:update')
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Req() request: AuthenticatedRequest,
     @Body() dto: UpdateProductDto,
   ) {
-    return this.products.update(id, request.user.id, dto);
+    return this.products.update(id, request.user, dto);
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: '删除自己创建的商品' })
+  @ApiOperation({ summary: '删除商品；管理员可删除全部，其余仅自己' })
   @ApiNoContentResponse()
-  @ApiForbiddenResponse({ description: '商品属于其他用户' })
-  @ApiNotFoundResponse({ description: '商品不存在' })
+  @ApiForbiddenResponse({ description: '没有执行此操作的权限' })
+  @ApiNotFoundResponse({ description: '商品不存在或不在可访问范围内' })
+  @RequirePermissions('product:delete')
   remove(
     @Param('id', ParseUUIDPipe) id: string,
     @Req() request: AuthenticatedRequest,
   ) {
-    return this.products.remove(id, request.user.id);
+    return this.products.remove(id, request.user);
   }
 }

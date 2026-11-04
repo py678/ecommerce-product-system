@@ -22,6 +22,7 @@ const ownerName = `${prefix}_owner`;
 const otherName = `${prefix}_other`;
 const fixtureProduct = `${prefix}_shared_product`;
 const compose = process.env.E2E_COMPOSE === '1';
+test.skip(compose, 'Role fixtures require an isolated local test database.');
 const apiBase = compose
   ? `${process.env.E2E_BASE_URL ?? 'http://127.0.0.1:8088'}/api`
   : 'http://127.0.0.1:3002/api';
@@ -50,6 +51,10 @@ test.beforeAll(async ({ request }) => {
     });
     expect(response.status()).toBe(201);
     const body = await response.json();
+    await database.user.update({
+      where: { id: body.user.id },
+      data: { role: username === ownerName ? 'ADMIN' : 'OPERATOR' },
+    });
     if (username === ownerName) ownerToken = body.accessToken;
   }
   const headers = { Authorization: `Bearer ${ownerToken}` };
@@ -117,7 +122,7 @@ test.afterAll(async () => {
   }
 });
 
-test('registers, manages categories/products, restores session and deletes records through the UI', async ({
+test('registers a viewer, then manages categories/products as an administrator', async ({
   page,
 }, testInfo) => {
   const errors: string[] = [];
@@ -136,6 +141,11 @@ test('registers, manages categories/products, restores session and deletes recor
     page.getByRole('heading', { name: '商品管理', exact: true }),
   ).toBeVisible();
 
+  await expect(
+    page.getByRole('button', { name: '新建商品' }),
+  ).not.toBeVisible();
+  await page.getByRole('button', { name: '退出', exact: true }).click();
+  await login(page);
   await page.getByRole('menuitem', { name: '分类管理' }).click();
   await page.getByRole('button', { name: '新建分类' }).click();
   const categoryDialog = page.getByRole('dialog');
@@ -276,26 +286,24 @@ test('validates registration, reports duplicate/login errors and supports mobile
   await expect(page).toHaveURL(/\/login$/);
 });
 
-test('disables foreign product mutations, recovers from network failure and redirects expired sessions', async ({
+test('hides foreign products, recovers from network failure and redirects expired sessions', async ({
   page,
 }) => {
   await login(page, otherName);
+  const filtered = page.waitForResponse((response) => {
+    const url = new URL(response.url());
+    return (
+      url.pathname === '/api/products' &&
+      url.searchParams.get('name') === fixtureProduct &&
+      response.status() === 200
+    );
+  });
   await page.getByPlaceholder('搜索商品名称').fill(fixtureProduct);
   await page.getByRole('button', { name: /^搜\s*索$/ }).click();
-  const row = page.getByRole('row').filter({ hasText: fixtureProduct });
-  await expect(
-    row.getByRole('button', { name: '编辑', exact: true }),
-  ).toBeDisabled();
-  await expect(
-    row.getByRole('button', { name: '删除', exact: true }),
-  ).toBeDisabled();
-  await row.getByRole('link', { name: '详情', exact: true }).click();
-  await expect(page.getByRole('button', { name: '编辑商品' })).toBeDisabled();
-  await expect(page.getByRole('button', { name: '删除商品' })).toBeDisabled();
-  await page.getByRole('link', { name: '返回商品列表' }).click();
+  await filtered;
   await expect(
     page.getByRole('row').filter({ hasText: fixtureProduct }),
-  ).toBeVisible();
+  ).not.toBeVisible();
   await expect(
     page.getByRole('button', { name: '刷新', exact: true }),
   ).not.toHaveClass(/ant-btn-loading/);
@@ -304,7 +312,13 @@ test('disables foreign product mutations, recovers from network failure and redi
   await expect(
     page.getByText('无法连接服务器，请检查网络后重试'),
   ).toBeVisible();
+  const retried = page.waitForResponse(
+    (response) =>
+      new URL(response.url()).pathname === '/api/products' &&
+      response.status() === 200,
+  );
   await page.getByRole('button', { name: /^重\s*试$/ }).click();
+  await retried;
   await expect(
     page.getByText('无法连接服务器，请检查网络后重试'),
   ).not.toBeVisible();

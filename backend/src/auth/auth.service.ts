@@ -28,7 +28,12 @@ export class AuthService {
     const passwordHash = await hash(dto.password, 12);
     try {
       const user = await this.db.user.create({
-        data: { username: dto.username, email: dto.email, passwordHash },
+        data: {
+          username: dto.username,
+          email: dto.email,
+          passwordHash,
+          role: 'VIEWER',
+        },
         select: { ...PUBLIC_USER_SELECT, tokenVersion: true },
       });
       return this.issueToken(publicUser(user), user.tokenVersion);
@@ -54,14 +59,8 @@ export class AuthService {
     if (!user || !passwordMatches)
       throw new UnauthorizedException('用户名或密码错误');
     // Explicitly construct the response so password hashes never reach the client.
-    const publicUser: UserResponseDto = {
-      id: user.id,
-      username: user.username,
-      email: user.email,
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt,
-    };
-    return this.issueToken(publicUser, user.tokenVersion);
+    const profile = publicUser(user);
+    return this.issueToken(profile, user.tokenVersion);
   }
 
   async findAuthenticatedUser(
@@ -75,7 +74,10 @@ export class AuthService {
     if (!user) throw new UnauthorizedException('登录状态无效，请重新登录');
     // 如需优化可加 tokenVersion 缓存，改密时失效。
     if (user.tokenVersion !== tokenVersion)
-      throw new UnauthorizedException('密码已修改，请重新登录');
+      throw new UnauthorizedException({
+        message: '账号安全信息已变更，请重新登录',
+        code: 'SESSION_REVOKED',
+      });
     return publicUser(user);
   }
 

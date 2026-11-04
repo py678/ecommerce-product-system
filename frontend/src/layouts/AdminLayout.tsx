@@ -9,6 +9,7 @@ import {
   MenuUnfoldOutlined,
 } from '@ant-design/icons';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { can, ROLE_LABELS } from '../auth/permissions';
 import { useAuth } from '../auth/useAuth';
 
 export function AdminLayout() {
@@ -16,11 +17,13 @@ export function AdminLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
-  const section = location.pathname.startsWith('/profile')
-    ? '/profile'
-    : location.pathname.startsWith('/categories')
-      ? '/categories'
-      : '/products';
+  const section = location.pathname.startsWith('/admin/users')
+    ? '/admin/users'
+    : location.pathname.startsWith('/profile')
+      ? '/profile'
+      : location.pathname.startsWith('/categories')
+        ? '/categories'
+        : '/products';
 
   return (
     <Layout className="admin-layout">
@@ -50,8 +53,33 @@ export function AdminLayout() {
               setCollapsed(true);
           }}
           items={[
-            { key: '/products', icon: <AppstoreOutlined />, label: '商品管理' },
-            { key: '/categories', icon: <FolderOutlined />, label: '分类管理' },
+            ...(can(user, 'product:read')
+              ? [
+                  {
+                    key: '/products',
+                    icon: <AppstoreOutlined />,
+                    label: '商品管理',
+                  },
+                ]
+              : []),
+            ...(can(user, 'category:read')
+              ? [
+                  {
+                    key: '/categories',
+                    icon: <FolderOutlined />,
+                    label: '分类管理',
+                  },
+                ]
+              : []),
+            ...(can(user, 'user:read')
+              ? [
+                  {
+                    key: '/admin/users',
+                    icon: <UserOutlined />,
+                    label: '账号管理',
+                  },
+                ]
+              : []),
             { key: '/profile', icon: <UserOutlined />, label: '个人中心' },
           ]}
         />
@@ -71,11 +99,13 @@ export function AdminLayout() {
             />
             <span className="breadcrumb">
               工作台 <span>/</span>{' '}
-              {section === '/profile'
-                ? '个人中心'
-                : section === '/products'
-                  ? '商品管理'
-                  : '分类管理'}
+              {section === '/admin/users'
+                ? '账号管理'
+                : section === '/profile'
+                  ? '个人中心'
+                  : section === '/products'
+                    ? '商品管理'
+                    : '分类管理'}
             </span>
           </Space>
           <Space size={12}>
@@ -83,7 +113,10 @@ export function AdminLayout() {
               {user?.username.slice(0, 1).toUpperCase()}
             </Avatar>
             <Typography.Text className="user-name">
-              {user?.username}
+              {user?.username}{' '}
+              {user?.role && (
+                <span className="muted">（{ROLE_LABELS[user.role]}）</span>
+              )}
             </Typography.Text>
             <Button
               aria-label="退出"

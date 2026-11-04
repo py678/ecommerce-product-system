@@ -5,7 +5,7 @@ Swagger 页面：`http://localhost:3000/docs`；OpenAPI JSON：`http://localhost
 
 ## 图片上传与商品封面
 
-`POST /upload/image`（含全局前缀的完整路径为 `/api/upload/image`），需要 Bearer JWT，使用 `multipart/form-data`，唯一文件字段为 `file`。单文件最多 5 MiB（5 × 1024 × 1024 字节），仅接受 jpg/jpeg/png/webp；后端核对扩展名、MIME 与文件签名，使用 UUID 重命名保存到后端工作目录的 `./uploads`。
+`POST /upload/image`（含全局前缀的完整路径为 `/api/upload/image`），需要 Bearer JWT 及 upload:image 权限（运营人员、管理员），使用 `multipart/form-data`，唯一文件字段为 `file`。单文件最多 5 MiB（5 × 1024 × 1024 字节），仅接受 jpg/jpeg/png/webp；后端核对扩展名、MIME 与文件签名，使用 UUID 重命名保存到后端工作目录的 `./uploads`。
 
 成功返回 HTTP 200：
 
@@ -50,7 +50,7 @@ Swagger 页面：`http://localhost:3000/docs`；OpenAPI JSON：`http://localhost
 
 错误使用 Nest 标准 JSON：`statusCode`、`message`、`error`。登录失败对未知账号和错误密码统一提示。限流为单进程内存存储，重启后清空；多实例部署时需更换共享存储。本项目目前使用本机直连，不信任客户端自行提供的转发地址头。
 
-JWT 使用 HS256，只接受匹配本系统 issuer/audience、包含有效用户 ID、有效期及整数 tokenVersion 且签名正确的令牌。验证签名和有效期后，每次鉴权直查数据库确认用户仍存在且版本相同。注册自动登录和普通登录均签发当前版本；缺少版本的历史令牌直接返回 401，升级后原有会话需重新登录。版本不匹配时返回 401，message 为“密码已修改，请重新登录”。目前不加缓存或 Redis。
+JWT 使用 HS256，只接受匹配本系统 issuer/audience、包含有效用户 ID、有效期及整数 tokenVersion 且签名正确的令牌。验证签名和有效期后，每次鉴权直查数据库确认用户仍存在且版本相同。注册自动登录和普通登录均签发当前版本；缺少版本的历史令牌直接返回 401，升级后原有会话需重新登录。版本不匹配时返回 401，message 为“账号安全信息已变更，请重新登录”，附带 `code: SESSION_REVOKED`。目前不加缓存或 Redis。
 
 尚无刷新令牌或普通登出的服务端撤销；普通退出仍仅删除客户端凭证。修改密码会在同一事务中更新 BCrypt 哈希并递增版本，撤销当前及其他旧会话。用户资料响应始终不含密码、哈希或版本字段；登录/注册响应中的 accessToken 仍是必要凭证，其 JWT payload 按设计可解码并含版本，日志不得记录完整凭证。
 
@@ -60,7 +60,7 @@ JWT 使用 HS256，只接受匹配本系统 issuer/audience、包含有效用户
 
 | 方法与路径 | 请求 | 成功响应 |
 | --- | --- | --- |
-| GET /users/me | 无 | 200；id、username、email、createdAt、updatedAt |
+| GET /users/me | 无 | 200；id、username、email、role、permissions、createdAt、updatedAt |
 | PATCH /users/me | `{ "email": "new@example.com" }` | 200；更新后的公开资料 |
 | PATCH /users/me/password | `{ "oldPassword": "Original-password-123!", "newPassword": "Changed-password-456!" }` | 200；`{ "message": "密码已修改，请重新登录" }`，不返回新凭证 |
 
@@ -72,7 +72,7 @@ JWT 使用 HS256，只接受匹配本系统 issuer/audience、包含有效用户
 
 前端导航“个人中心”位于 `/profile`，含资料与密码两张表单。改密成功清除当前会话并跳登录页，提示“密码已修改，请重新登录”；后续请求因版本不符收到 401 时复用同一会话过期机制，普通过期仍使用原有通用提示。当前为 sessionStorage，其他标签页/会话在下一次受保护请求时失效。
 
-两库采用异步双向同步：改密在当前数据库立即撤销旧凭证，在另一库同步完成后撤销。同步用户版本和密码；较旧版本的事件不得覆盖新版本或新哈希。不保证两套库同时改密时的全局串行化，需此保证时应统一认证数据源。详细实现与升级步骤见 [个人中心说明](personal-center.md)。
+两库采用异步双向同步：改密或调整角色在当前数据库立即撤销旧凭证，在另一库同步完成后撤销。同步用户角色、版本和密码；较旧版本的事件不得覆盖新版本、角色或新哈希。不保证两套库同时改密时的全局串行化，需此保证时应统一认证数据源。详细实现与升级步骤见 [个人中心说明](personal-center.md)。
 
 ## 启动配置
 
@@ -91,7 +91,7 @@ JWT 使用 HS256，只接受匹配本系统 issuer/audience、包含有效用户
 
 ## 分类接口
 
-以下接口均需 Bearer 令牌。分类为全后台共享，任意已登录用户可以维护；当前不区分管理员角色、不实现分类层级。
+以下接口均需 Bearer 令牌。分类为全后台共享，所有角色均可查看，仅管理员可以维护；不实现分类层级。
 
 | 方法与路径 | 用途 | 成功结果 |
 | --- | --- | --- |
@@ -105,15 +105,15 @@ JWT 使用 HS256，只接受匹配本系统 issuer/audience、包含有效用户
 
 ## 商品接口
 
-所有商品接口均需 Bearer 令牌。已登录用户可查看共享商品目录，但仅创建者能编辑和删除。创建者从令牌确定，客户端不能指定或修改 userId。
+所有商品接口均需 Bearer 令牌。访客只读自己的商品，运营人员可创建并管理自己的商品，管理员可管理全部商品。创建者从令牌确定，包括管理员创建商品时也固定为当前账号；编辑他人商品不改变归属。客户端不能指定或修改 userId、creatorId、role。列表与总数统计强制共用同一份带归属过滤的 where。
 
 | 方法与路径 | 用途 | 成功结果 |
 | --- | --- | --- |
 | POST /products | 创建商品 | 201；商品详情 |
 | GET /products | 名称、分类、价格、库存组合筛选与排序 | 200；分页结果 |
 | GET /products/{id} | 查看商品详情 | 200；商品详情 |
-| PATCH /products/{id} | 部分修改自己创建的商品 | 200；更新后的商品 |
-| DELETE /products/{id} | 删除自己创建的商品 | 204，无响应正文 |
+| PATCH /products/{id} | 按角色范围部分修改商品 | 200；更新后的商品 |
+| DELETE /products/{id} | 按角色范围删除商品 | 204，无响应正文 |
 
 先创建分类，复制返回的 UUID，再提交商品：
 
@@ -129,7 +129,7 @@ JWT 使用 HS256，只接受匹配本系统 issuer/audience、包含有效用户
 
 商品名 trim 后长度 1–200；描述可选，最长 10000 字符，默认空字符串。price 必须是非负十进制字符串，最多两位小数，最大 `9999999999.99`，不接受 JSON 数字、科学计数法、NaN、无穷值或前后空白。返回金额固定两位小数，避免前端使用浮点计算。stock 为 JSON 整数，范围 0–2147483647，创建时默认 0。
 
-PATCH 只能提交 name、description、coverImage、price、stock、categoryId 中的一个或多个字段；不提交的字段保持原值，null、空对象及额外字段返回 400。分类必须存在；引用不存在的分类返回 400。商品不存在返回 404；非创建者编辑或删除返回 403。UUID 格式错误返回 400。
+PATCH 只能提交 name、description、coverImage、price、stock、categoryId 中的一个或多个字段；不提交的字段保持原值，null、空对象及额外字段返回 400。分类必须存在；引用不存在的分类返回 400。商品不存在或不在当前用户可访问范围内统一返回 404“商品不存在”；缺少操作权限返回 403“没有执行此操作的权限”。UUID 格式错误返回 400。
 
 详情及列表项含 category（id/name）、user（id/username），不包含创建者邮箱、密码或密码哈希。
 
@@ -165,3 +165,17 @@ PATCH 只能提交 name、description、coverImage、price、stock、categoryId 
 ## 本阶段验证
 
 商品/分类新增 59 项 HTTP 测试，覆盖 CRUD、鉴权、归属、分页、过滤、金额精度及边界、非法输入、引用删除和 Swagger。连同原有测试，共 79 项 HTTP 测试、两组数据库回归通过。测试会自动清理自身随机生成的记录，不清空业务库。
+
+
+## 管理员账号与角色权限
+
+公开用户资料（登录/注册、auth/me、users/me、账号管理）新增只读 role 与 permissions，不返回 passwordHash 或 tokenVersion。角色为 VIEWER（访客）、OPERATOR（运营人员）、ADMIN（管理员）。新注册强制 VIEWER，注册/个人资料中夹带 role 返回 400。权限矩阵见 [角色权限说明](rbac.md)。Swagger 的业务操作带 x-permissions 标记；JWT 之后由 PermissionsGuard 校验。
+
+| 方法与路径（包含 /api 前缀） | 参数 | 返回与权限 |
+| --- | --- | --- |
+| GET /api/admin/users | page 默认 1、pageSize 默认 20/上限 100、search 用户名或邮箱模糊搜索、role 枚举筛选 | 200，items/total/page/pageSize/totalPages；user:read |
+| PATCH /api/admin/users/{id}/role | UUID 路径；body 只允许 role | 200，公开用户资料；user:assign-role |
+
+账号列表与总数使用相同筛选条件及 Repeatable Read 快照。角色修改禁止自改、无变化、非法枚举及额外字段（400）；目标不存在 404，最后管理员保护返回 409。角色变化、tokenVersion 递增与 role_audits 写入同一事务；数据库事务锁串行化该库内的角色调整，并在锁内重新校验操作者仍是管理员。审计失败时全部回滚。不返回新 token，目标账号下一次受保护请求返回 401 后必须重新登录。
+
+上传要求 upload:image（运营人员、管理员）；访客直接请求返回 403。个人中心不需要额外权限点，但只操作 JWT 当前账号。所有业务 DTO 复用严格白名单，非契约字段返回 400；独立 AssignRoleDto 只在管理员角色接口允许 role。

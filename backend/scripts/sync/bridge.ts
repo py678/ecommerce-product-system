@@ -7,6 +7,7 @@ const columns = {
     'email',
     'password_hash',
     'token_version',
+    'role',
     'created_at',
     'updated_at',
   ],
@@ -80,11 +81,22 @@ export async function applyChange(
         const updates = fields
           .filter((field) => field !== 'id')
           .map((field) => {
-            // An older profile event must never restore a password or revive revoked credentials.
+            // An older profile event must never restore a password/role or revive revoked credentials.
             if (change.table_name === 'users' && field === 'token_version')
               return '"token_version"=GREATEST("users"."token_version",EXCLUDED."token_version")';
-            if (change.table_name === 'users' && field === 'password_hash')
-              return '"password_hash"=CASE WHEN EXCLUDED."token_version">="users"."token_version" THEN EXCLUDED."password_hash" ELSE "users"."password_hash" END';
+            if (
+              change.table_name === 'users' &&
+              (field === 'password_hash' || field === 'role')
+            )
+              return (
+                '"' +
+                field +
+                '"=CASE WHEN EXCLUDED."token_version">="users"."token_version" THEN EXCLUDED."' +
+                field +
+                '" ELSE "users"."' +
+                field +
+                '" END'
+              );
             return `"${field}"=EXCLUDED."${field}"`;
           })
           .join(', ');
@@ -98,6 +110,7 @@ export async function applyChange(
                 ? {
                     ...change.row_data,
                     token_version: change.row_data.token_version ?? 0,
+                    role: change.row_data.role ?? 'OPERATOR',
                   }
                 : change.row_data,
             ),

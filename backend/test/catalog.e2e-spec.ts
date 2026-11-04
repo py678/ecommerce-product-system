@@ -63,6 +63,7 @@ describe.sequential('Catalog HTTP API (real PostgreSQL)', () => {
           username: `${prefix}_${suffix}`,
           email: `${prefix}_${suffix}@example.invalid`,
           passwordHash,
+          role: suffix === 'owner' ? 'ADMIN' : 'OPERATOR',
         },
       });
       userIds.push(user.id);
@@ -105,11 +106,11 @@ describe.sequential('Catalog HTTP API (real PostgreSQL)', () => {
     });
     await request(app.getHttpServer())
       .get(`/api/categories/${id}`)
-      .set('Authorization', `Bearer ${otherToken}`)
+      .set('Authorization', `Bearer ${token}`)
       .expect(200);
     const updated = await request(app.getHttpServer())
       .patch(`/api/categories/${id}`)
-      .set('Authorization', `Bearer ${otherToken}`)
+      .set('Authorization', `Bearer ${token}`)
       .send({ name: ` ${prefix}_renamed ` })
       .expect(200);
     expect(updated.body.name).toBe(`${prefix}_renamed`);
@@ -211,20 +212,20 @@ describe.sequential('Catalog HTTP API (real PostgreSQL)', () => {
     });
   });
 
-  it('allows authenticated shared reads but forbids changing another user’s product', async () => {
+  it('returns the same 404 for another owner’s product and a missing product', async () => {
     await request(app.getHttpServer())
       .get(`/api/products/${productId}`)
       .set('Authorization', `Bearer ${otherToken}`)
-      .expect(200);
+      .expect(404);
     await request(app.getHttpServer())
       .patch(`/api/products/${productId}`)
       .set('Authorization', `Bearer ${otherToken}`)
       .send({ name: 'Hijacked' })
-      .expect(403);
+      .expect(404);
     await request(app.getHttpServer())
       .delete(`/api/products/${productId}`)
       .set('Authorization', `Bearer ${otherToken}`)
-      .expect(403);
+      .expect(404);
     const stored = await db.product.findUniqueOrThrow({
       where: { id: productId },
     });
@@ -266,7 +267,7 @@ describe.sequential('Catalog HTTP API (real PostgreSQL)', () => {
     const first = await request(app.getHttpServer())
       .get('/api/products')
       .query(query)
-      .set('Authorization', `Bearer ${otherToken}`)
+      .set('Authorization', `Bearer ${token}`)
       .expect(200);
     const second = await request(app.getHttpServer())
       .get('/api/products')

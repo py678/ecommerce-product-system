@@ -8,6 +8,7 @@ import {
   Routes,
   useLocation,
 } from 'react-router-dom';
+import { RequirePermission } from './auth/RequirePermission';
 import { useAuth } from './auth/useAuth';
 import { AdminLayout } from './layouts/AdminLayout';
 import { LoadingScreen } from './components/PageFeedback';
@@ -34,6 +35,12 @@ const ProductDetailPage = lazy(() =>
 const ProfilePage = lazy(() =>
   import('./pages/ProfilePage').then((module) => ({
     default: module.ProfilePage,
+  })),
+);
+
+const AdminUsersPage = lazy(() =>
+  import('./pages/AdminUsersPage').then((module) => ({
+    default: module.AdminUsersPage,
   })),
 );
 
@@ -81,9 +88,16 @@ export default function App() {
         <Route element={<RequireAuth />}>
           <Route element={<AdminLayout />}>
             <Route index element={<Navigate to="/products" replace />} />
-            <Route path="/products" element={<ProductsPage />} />
-            <Route path="/products/:id" element={<ProductDetailPage />} />
-            <Route path="/categories" element={<CategoriesPage />} />
+            <Route element={<RequirePermission permission="product:read" />}>
+              <Route path="/products" element={<ProductsPage />} />
+              <Route path="/products/:id" element={<ProductDetailPage />} />
+            </Route>
+            <Route element={<RequirePermission permission="category:read" />}>
+              <Route path="/categories" element={<CategoriesPage />} />
+            </Route>
+            <Route element={<RequirePermission permission="user:read" />}>
+              <Route path="/admin/users" element={<AdminUsersPage />} />
+            </Route>
             <Route path="/profile" element={<ProfilePage />} />
           </Route>
         </Route>

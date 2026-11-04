@@ -88,3 +88,16 @@ Remove-Item Env:E2E_COMPOSE
 ## 已执行验收（2026-10-30）
 
 Linux 隔离构建、空库初始化迁移、数据库容器重建后保留迁移及重复执行迁移均通过。79 项 HTTP 测试、2 项数据库验证及容器入口的 3 组 Edge 浏览器流程通过；数据库、后端、前端健康，Swagger/OpenAPI、前端详情页刷新正常。测试数据按随机前缀清理；未清空本机开发数据库。
+
+
+## 三角色升级与首次管理员
+
+迁移 SQL 与规则见 [角色权限说明](rbac.md)。本次交付未部署业务数据库，业务服务器保持关闭；升级时先备份两库并停止 backend/frontend/db-sync，分别执行两库 db:deploy，再一起更新应用与同步镜像。已有用户回填运营人员，新注册默认访客；分类全局共享，仅管理员可维护。
+
+首次管理员需维护者指定已存在的用户名，在已更新且已迁移的目标主库运行一次：
+
+~~~powershell
+docker compose run --rm --no-deps migrate node dist/admin/bootstrap-admin.js <已存在的用户名>
+~~~
+
+本机方式是在 backend 目录确认 .env 后运行 npm.cmd run build，再运行 npm.cmd run admin:bootstrap -- <已存在的用户名>。已有管理员时脚本拒绝重复引导；不自动把某个真实用户提升为管理员。启用同步时只在主库引导，待角色/版本同步完成后重新登录。权限修改及版本撤销的跨库生效存在既有异步延迟，审计在操作源库保存。

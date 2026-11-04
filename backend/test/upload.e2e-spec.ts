@@ -35,6 +35,7 @@ describe.sequential('Image upload and product cover HTTP API', () => {
     const user = await db.user.create({
       data: {
         username: prefix,
+        role: 'OPERATOR',
         email: `${prefix}@example.invalid`,
         passwordHash: 'unused-fixture-hash',
       },

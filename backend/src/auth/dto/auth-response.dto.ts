@@ -1,4 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { UserRole } from '../../generated/prisma/client.js';
+import { PERMISSIONS, type Permission } from '../permissions.js';
 
 export class UserResponseDto {
   @ApiProperty({ format: 'uuid' })
@@ -6,6 +8,12 @@ export class UserResponseDto {
 
   @ApiProperty()
   username: string;
+
+  @ApiProperty({ enum: UserRole, description: '当前数据库角色' })
+  role: UserRole;
+
+  @ApiProperty({ enum: PERMISSIONS, isArray: true })
+  permissions: Permission[];
 
   @ApiProperty({ format: 'email' })
   email: string;

@@ -20,6 +20,8 @@ import {
   ReloadOutlined,
 } from '@ant-design/icons';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../auth/useAuth';
+import { can } from '../auth/permissions';
 import { api, errorMessage } from '../api/client';
 import type { Category, ListQuery } from '../api/types';
 import { useResource } from '../hooks/useResource';
@@ -90,6 +92,7 @@ function CategoryModal({
 }
 
 export function CategoriesPage() {
+  const { user } = useAuth();
   const { message } = App.useApp();
   const [query, setQuery] = useState<ListQuery>({ page: 1, pageSize: 20 });
   const [search, setSearch] = useState('');
@@ -153,34 +156,40 @@ export function CategoriesPage() {
       width: 155,
       render: (_value, item) => (
         <Space size={2}>
-          <Button
-            type="link"
-            size="small"
-            onClick={() => setModal({ category: item })}
-          >
-            编辑
-          </Button>
-          <Tooltip
-            title={item.productCount ? '请先调整或删除分类下的商品' : undefined}
-          >
-            <Popconfirm
-              title="确认删除分类？"
-              okText="删除"
-              cancelText="取消"
-              disabled={!!item.productCount || !!deleting}
-              onConfirm={() => remove(item)}
+          {can(user, 'category:update') && (
+            <Button
+              type="link"
+              size="small"
+              onClick={() => setModal({ category: item })}
             >
-              <Button
-                type="link"
-                size="small"
-                danger
+              编辑
+            </Button>
+          )}
+          {can(user, 'category:delete') && (
+            <Tooltip
+              title={
+                item.productCount ? '请先调整或删除分类下的商品' : undefined
+              }
+            >
+              <Popconfirm
+                title="确认删除分类？"
+                okText="删除"
+                cancelText="取消"
                 disabled={!!item.productCount || !!deleting}
-                loading={deleting === item.id}
+                onConfirm={() => remove(item)}
               >
-                删除
-              </Button>
-            </Popconfirm>
-          </Tooltip>
+                <Button
+                  type="link"
+                  size="small"
+                  danger
+                  disabled={!!item.productCount || !!deleting}
+                  loading={deleting === item.id}
+                >
+                  删除
+                </Button>
+              </Popconfirm>
+            </Tooltip>
+          )}
         </Space>
       ),
     },
@@ -194,14 +203,16 @@ export function CategoriesPage() {
           <h1>分类管理</h1>
           <p>整理共享分类，让商品更容易被找到。</p>
         </div>
-        <Button
-          type="primary"
-          size="large"
-          icon={<PlusOutlined />}
-          onClick={() => setModal({})}
-        >
-          新建分类
-        </Button>
+        {can(user, 'category:create') && (
+          <Button
+            type="primary"
+            size="large"
+            icon={<PlusOutlined />}
+            onClick={() => setModal({})}
+          >
+            新建分类
+          </Button>
+        )}
       </div>
       <Card className="catalog-card">
         <div className="list-toolbar">
@@ -243,7 +254,7 @@ export function CategoriesPage() {
                 description={
                   query.search
                     ? '没有找到符合条件的分类'
-                    : '还没有分类，先创建一个吧'
+                    : '暂无分类，请联系管理员维护'
                 }
               />
             ),

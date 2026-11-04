@@ -24,7 +24,8 @@ export const sessionToken = {
   },
 };
 
-export type SessionExpiryReason = 'expired' | 'passwordChanged';
+export type SessionExpiryReason =
+  'expired' | 'passwordChanged' | 'securityChanged';
 export function expireSession(reason: SessionExpiryReason = 'expired') {
   sessionToken.set(null);
   window.dispatchEvent(

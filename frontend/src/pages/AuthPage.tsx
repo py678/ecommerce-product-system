@@ -25,7 +25,8 @@ export function AuthPage({ register = false }: { register?: boolean }) {
     typeof from === 'string' &&
     (from.startsWith('/products') ||
       from.startsWith('/categories') ||
-      from === '/profile')
+      from === '/profile' ||
+      from.startsWith('/admin/users'))
       ? from
       : '/products';
 

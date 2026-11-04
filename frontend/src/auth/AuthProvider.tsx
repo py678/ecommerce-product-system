@@ -20,7 +20,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setNotice(
         reason === 'passwordChanged'
           ? '密码已修改，请重新登录'
-          : '登录已过期，请重新登录。',
+          : reason === 'securityChanged'
+            ? '账号安全信息已变更，请重新登录'
+            : '登录已过期，请重新登录。',
       );
     }
     window.addEventListener(SESSION_EXPIRED_EVENT, expire);

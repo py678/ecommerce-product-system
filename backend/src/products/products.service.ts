@@ -1,9 +1,9 @@
 import {
   BadRequestException,
-  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { productScope, type Actor } from '../auth/permissions.js';
 import { lowStockThreshold } from './products.config.js';
 import { productListQuery } from './product-list-query.js';
 import { DatabaseService } from '../database/database.service.js';
@@ -58,8 +58,12 @@ export class ProductsService {
     }
   }
 
-  async findAll(query: ProductQueryDto): Promise<ProductPageDto> {
-    const { where, orderBy } = productListQuery(query, this.threshold);
+  async findAll(query: ProductQueryDto, actor: Actor): Promise<ProductPageDto> {
+    const filters = productListQuery(query, this.threshold);
+    const where: Prisma.ProductWhereInput = {
+      AND: [filters.where, productScope(actor)],
+    };
+    const orderBy = filters.orderBy;
     const [items, total] = await this.db.$transaction(
       [
         this.db.product.findMany({
@@ -85,9 +89,9 @@ export class ProductsService {
     };
   }
 
-  async findOne(id: string): Promise<ProductResponseDto> {
+  async findOne(id: string, actor: Actor): Promise<ProductResponseDto> {
     const product = await this.db.product.findUnique({
-      where: { id },
+      where: { ...productScope(actor), id },
       include: PRODUCT_RELATIONS,
     });
     if (!product) throw new NotFoundException('商品不存在');
@@ -96,19 +100,19 @@ export class ProductsService {
 
   async update(
     id: string,
-    userId: string,
+    actor: Actor,
     dto: UpdateProductDto,
   ): Promise<ProductResponseDto> {
     if (Object.values(dto).every((value) => value === undefined))
       throw new BadRequestException('请至少提供一个可更新字段');
-    await this.requireOwner(id, userId);
+    await this.findOne(id, actor);
     if (dto.categoryId !== undefined)
       await this.requireCategory(dto.categoryId);
     try {
       // Include ownership in the write condition as well as the human-readable permission check.
       return toResponse(
         await this.db.product.update({
-          where: { id, userId },
+          where: { ...productScope(actor), id },
           data: {
             name: dto.name,
             description: dto.description,
@@ -125,23 +129,13 @@ export class ProductsService {
     }
   }
 
-  async remove(id: string, userId: string): Promise<void> {
-    await this.requireOwner(id, userId);
+  async remove(id: string, actor: Actor): Promise<void> {
+    await this.findOne(id, actor);
     try {
-      await this.db.product.delete({ where: { id, userId } });
+      await this.db.product.delete({ where: { ...productScope(actor), id } });
     } catch (error) {
       this.handleWriteError(error);
     }
-  }
-
-  private async requireOwner(id: string, userId: string): Promise<void> {
-    const product = await this.db.product.findUnique({
-      where: { id },
-      select: { userId: true },
-    });
-    if (!product) throw new NotFoundException('商品不存在');
-    if (product.userId !== userId)
-      throw new ForbiddenException('只能修改或删除自己创建的商品');
   }
 
   private async requireCategory(id: string): Promise<void> {

@@ -14,6 +14,7 @@ import {
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
+  ApiForbiddenResponse,
   ApiBearerAuth,
   ApiConflictResponse,
   ApiCreatedResponse,
@@ -24,6 +25,8 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+import { PermissionsGuard } from '../auth/permissions.guard.js';
+import { RequirePermissions } from '../auth/permissions.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { PaginationDto } from '../common/dto/pagination.dto.js';
 import { CategoriesService } from './categories.service.js';
@@ -36,9 +39,10 @@ import {
 
 @ApiTags('分类')
 @ApiBearerAuth()
+@ApiForbiddenResponse({ description: '没有执行此操作的权限' })
 @ApiUnauthorizedResponse({ description: '请先登录' })
 @ApiBadRequestResponse({ description: '输入或分页参数无效' })
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('categories')
 export class CategoriesController {
   constructor(private readonly categories: CategoriesService) {}
@@ -46,6 +50,7 @@ export class CategoriesController {
   @Post()
   @ApiOperation({ summary: '创建共享分类' })
   @ApiCreatedResponse({ type: CategoryResponseDto })
+  @RequirePermissions('category:create')
   create(@Body() dto: CreateCategoryDto) {
     return this.categories.create(dto);
   }
@@ -53,6 +58,7 @@ export class CategoriesController {
   @Get()
   @ApiOperation({ summary: '分页搜索分类' })
   @ApiOkResponse({ type: CategoryPageDto })
+  @RequirePermissions('category:read')
   findAll(@Query() query: PaginationDto) {
     return this.categories.findAll(query);
   }
@@ -61,6 +67,7 @@ export class CategoriesController {
   @ApiOperation({ summary: '获取分类详情及商品数量' })
   @ApiOkResponse({ type: CategoryResponseDto })
   @ApiNotFoundResponse({ description: '分类不存在' })
+  @RequirePermissions('category:read')
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.categories.findOne(id);
   }
@@ -69,6 +76,7 @@ export class CategoriesController {
   @ApiOperation({ summary: '编辑分类' })
   @ApiOkResponse({ type: CategoryResponseDto })
   @ApiNotFoundResponse({ description: '分类不存在' })
+  @RequirePermissions('category:update')
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateCategoryDto,
@@ -82,6 +90,7 @@ export class CategoriesController {
   @ApiNoContentResponse()
   @ApiNotFoundResponse({ description: '分类不存在' })
   @ApiConflictResponse({ description: '分类仍被商品引用' })
+  @RequirePermissions('category:delete')
   remove(@Param('id', ParseUUIDPipe) id: string) {
     return this.categories.remove(id);
   }

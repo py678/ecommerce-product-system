@@ -1,6 +1,27 @@
+export type UserRole = 'VIEWER' | 'OPERATOR' | 'ADMIN';
+export type Permission =
+  | 'product:read'
+  | 'product:create'
+  | 'product:update'
+  | 'product:delete'
+  | 'category:read'
+  | 'category:create'
+  | 'category:update'
+  | 'category:delete'
+  | 'upload:image'
+  | 'user:read'
+  | 'user:assign-role';
+export interface AdminUserQuery {
+  page: number;
+  pageSize: number;
+  search?: string;
+  role?: UserRole;
+}
 export interface User {
   id: string;
   username: string;
+  role: UserRole;
+  permissions: Permission[];
   email: string;
   createdAt: string;
   updatedAt: string;

@@ -15,7 +15,17 @@ export class DatabaseService
         'DATABASE_URL is required. Configure backend/.env before starting.',
       );
     }
-    super({ adapter: new PrismaPg({ connectionString }) });
+    // Respect the configured schema, including isolated integration-test namespaces.
+    const schema =
+      new URL(connectionString).searchParams.get('schema') ?? 'public';
+    if (!/^[a-z_][a-z0-9_]*$/.test(schema))
+      throw new Error('Invalid database schema');
+    super({
+      adapter: new PrismaPg(
+        { connectionString, options: '-c search_path=' + schema },
+        { schema },
+      ),
+    });
   }
 
   async onModuleInit(): Promise<void> {

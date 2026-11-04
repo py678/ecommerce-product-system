@@ -63,6 +63,8 @@ describe.sequential('Personal centre HTTP API', () => {
       'createdAt',
       'email',
       'id',
+      'permissions',
+      'role',
       'updatedAt',
       'username',
     ]);
@@ -185,7 +187,7 @@ describe.sequential('Personal centre HTTP API', () => {
         '/api/categories',
       ]) {
         const r = await api('get', path, old).expect(401);
-        expect(r.body.message).toBe('密码已修改，请重新登录');
+        expect(r.body.message).toBe('账号安全信息已变更，请重新登录');
       }
       await request(app.getHttpServer())
         .post('/api/upload/image')

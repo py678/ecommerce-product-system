@@ -3,6 +3,15 @@ import { test, expect } from '@playwright/test';
 const user = {
   id: '00000000-0000-4000-8000-000000000001',
   username: 'filter_user',
+  role: 'OPERATOR',
+  permissions: [
+    'product:read',
+    'product:create',
+    'product:update',
+    'product:delete',
+    'category:read',
+    'upload:image',
+  ],
   email: 'filter@example.invalid',
   createdAt: '2026-01-01T00:00:00Z',
   updatedAt: '2026-01-01T00:00:00Z',

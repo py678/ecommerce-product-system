@@ -11,9 +11,18 @@ erDiagram
     varchar username UK
     varchar email UK
     varchar password_hash
+    UserRole role
     int token_version
     timestamptz created_at
     timestamptz updated_at
+  }
+  role_audits {
+    uuid id PK
+    uuid actor_id
+    uuid target_id
+    UserRole from_role
+    UserRole to_role
+    timestamptz created_at
   }
   categories {
     uuid id PK
@@ -84,3 +93,12 @@ npm.cmd run start:dev
 数据库初始化不创建默认管理员、不写入演示账号；注册与登录由认证模块提供，使用说明见 [API 文档](api.md)。
 
 2026-10-29 本机验证：初始迁移应用成功，`db:verify` 两组测试通过，`test:e2e` 一项连接测试通过；`db:status` 为最新，数据库与 Prisma schema 比较无差异。PostgreSQL 18 对 RESTRICT 删除返回 `23001`，非法外键插入返回 `23503`。
+
+
+## 三角色迁移
+
+UserRole 枚举：VIEWER、OPERATOR、ADMIN；users.role 非空且默认 VIEWER。结构迁移 20261104055425_user_roles_and_audit 新增枚举、字段、role_audits 与 (target_id, created_at) 索引；后续 20261104055441_user_roles_and_audit 将已有账号回填 OPERATOR，不修改密码、归属、商品或分类。后续注册仍默认 VIEWER。
+
+role_audits 保存 actor_id、target_id、from_role、to_role、created_at，不存密码/令牌，标识不设置级联外键，保留历史操作依据。审计只在发起操作的库落地，用户角色和版本通过现有同步桥传播。
+
+本次 SQL 已经用户审查确认；仅在隔离 schema 验证空库部署与已有账号回填，尚未部署本机 public 或 Docker 业务库。分类本来就是全局独立表，没有按用户的唯一键或归属字段，升级不合并、不删除任何分类。
