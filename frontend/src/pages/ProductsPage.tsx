@@ -211,7 +211,9 @@ export function ProductsPage() {
           <p>
             {user?.role === 'ADMIN'
               ? '查看并管理所有成员的商品。'
-              : '查看和管理自己创建的商品。'}
+              : user?.role === 'OPERATOR'
+                ? '查看全部商品，仅可编辑和删除自己创建的商品。'
+                : '查看全部商品，当前为只读访问。'}
           </p>
         </div>
         {can(user, 'product:create') && (

@@ -37,7 +37,8 @@ export interface Actor {
   id: string;
   role: UserRole;
 }
-// This scope is also attached to the actual write, never just a preliminary read.
+// Write scope only: all authenticated roles share product reads.
+// Attach ownership to the actual write, never just a preliminary read.
 export function productScope(actor: Actor): Prisma.ProductWhereInput {
   return actor.role === 'ADMIN' ? {} : { userId: actor.id };
 }

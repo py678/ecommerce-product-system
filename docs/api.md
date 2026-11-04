@@ -22,7 +22,7 @@ Swagger 页面：`http://localhost:3000/docs`；OpenAPI JSON：`http://localhost
 | 方法与路径 | 请求 | 成功结果 |
 | --- | --- | --- |
 | POST /auth/register | username、email、password | 201；用户资料与访问令牌 |
-| POST /auth/login | username、password | 200；用户资料与访问令牌 |
+| POST /auth/login | username、password、可选 loginRole（VIEWER/OPERATOR/ADMIN） | 200；用户资料与访问令牌 |
 | GET /auth/me | Authorization: Bearer <accessToken> | 200；当前用户资料 |
 
 在 Swagger 展开接口，点击 Try it out 填写请求；注册/登录成功后，复制响应中的 `accessToken`，在页面的 Authorize 中粘贴令牌即可调用 `/api/auth/me`。不要把令牌粘贴到提交记录或文档。
@@ -48,7 +48,7 @@ Swagger 页面：`http://localhost:3000/docs`；OpenAPI JSON：`http://localhost
 | 409 | 用户名或归一化邮箱重复，并发注册也受数据库唯一约束保护 |
 | 429 | 注册超过每分钟 5 次或登录超过每分钟 10 次；按客户端地址及接口计数，含失败请求 |
 
-错误使用 Nest 标准 JSON：`statusCode`、`message`、`error`。登录失败对未知账号和错误密码统一提示。限流为单进程内存存储，重启后清空；多实例部署时需更换共享存储。本项目目前使用本机直连，不信任客户端自行提供的转发地址头。
+错误使用 Nest 标准 JSON：`statusCode`、`message`、`error`。登录失败对未知账号和错误密码统一提示。密码验证成功后，如可选 loginRole 与数据库角色不匹配，返回 401“账号角色与所选登录入口不匹配，请选择正确入口”，不签发凭证、不改变角色；非法枚举返回 400。登录页三种入口固定提交对应 loginRole，省略字段兼容既有 API 客户端。限流为单进程内存存储，重启后清空；多实例部署时需更换共享存储。本项目目前使用本机直连，不信任客户端自行提供的转发地址头。
 
 JWT 使用 HS256，只接受匹配本系统 issuer/audience、包含有效用户 ID、有效期及整数 tokenVersion 且签名正确的令牌。验证签名和有效期后，每次鉴权直查数据库确认用户仍存在且版本相同。注册自动登录和普通登录均签发当前版本；缺少版本的历史令牌直接返回 401，升级后原有会话需重新登录。版本不匹配时返回 401，message 为“账号安全信息已变更，请重新登录”，附带 `code: SESSION_REVOKED`。目前不加缓存或 Redis。
 
@@ -105,7 +105,7 @@ JWT 使用 HS256，只接受匹配本系统 issuer/audience、包含有效用户
 
 ## 商品接口
 
-所有商品接口均需 Bearer 令牌。访客只读自己的商品，运营人员可创建并管理自己的商品，管理员可管理全部商品。创建者从令牌确定，包括管理员创建商品时也固定为当前账号；编辑他人商品不改变归属。客户端不能指定或修改 userId、creatorId、role。列表与总数统计强制共用同一份带归属过滤的 where。
+所有商品接口均需 Bearer 令牌。所有登录角色均可查看全部商品列表和详情；访客只读，运营人员可创建并管理自己的商品，管理员可管理全部商品。创建者从令牌确定，包括管理员创建商品时也固定为当前账号；编辑他人商品不改变归属。客户端不能指定或修改 userId、creatorId、role。列表与总数统计强制共用同一份筛选 where，不按创建者限制读取范围。
 
 | 方法与路径 | 用途 | 成功结果 |
 | --- | --- | --- |
@@ -129,7 +129,7 @@ JWT 使用 HS256，只接受匹配本系统 issuer/audience、包含有效用户
 
 商品名 trim 后长度 1–200；描述可选，最长 10000 字符，默认空字符串。price 必须是非负十进制字符串，最多两位小数，最大 `9999999999.99`，不接受 JSON 数字、科学计数法、NaN、无穷值或前后空白。返回金额固定两位小数，避免前端使用浮点计算。stock 为 JSON 整数，范围 0–2147483647，创建时默认 0。
 
-PATCH 只能提交 name、description、coverImage、price、stock、categoryId 中的一个或多个字段；不提交的字段保持原值，null、空对象及额外字段返回 400。分类必须存在；引用不存在的分类返回 400。商品不存在或不在当前用户可访问范围内统一返回 404“商品不存在”；缺少操作权限返回 403“没有执行此操作的权限”。UUID 格式错误返回 400。
+PATCH 只能提交 name、description、coverImage、price、stock、categoryId 中的一个或多个字段；不提交的字段保持原值，null、空对象及额外字段返回 400。分类必须存在；引用不存在的分类返回 400。共享详情不存在返回 404；编辑/删除越权或商品不存在统一返回 404“商品不存在”；缺少操作权限返回 403“没有执行此操作的权限”。UUID 格式错误返回 400。
 
 详情及列表项含 category（id/name）、user（id/username），不包含创建者邮箱、密码或密码哈希。
 

@@ -212,11 +212,11 @@ describe.sequential('Catalog HTTP API (real PostgreSQL)', () => {
     });
   });
 
-  it('returns the same 404 for another owner’s product and a missing product', async () => {
+  it('shares product details but rejects another owner’s writes', async () => {
     await request(app.getHttpServer())
       .get(`/api/products/${productId}`)
       .set('Authorization', `Bearer ${otherToken}`)
-      .expect(404);
+      .expect(200);
     await request(app.getHttpServer())
       .patch(`/api/products/${productId}`)
       .set('Authorization', `Bearer ${otherToken}`)

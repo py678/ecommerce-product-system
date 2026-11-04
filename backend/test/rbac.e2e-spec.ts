@@ -93,10 +93,18 @@ describe.sequential('RBAC and resource scope HTTP API', () => {
       const r = await api('get', '/api/products', who)
         .query({ name: prefix, pageSize: 1 })
         .expect(200);
-      expect(r.body.total).toBe(who === 'admin' ? 3 : 1);
+      expect(r.body.total).toBe(3);
       expect(r.body.list).toHaveLength(1);
       expect(r.body.items).toEqual(r.body.list);
-      if (who !== 'admin') expect(r.body.list[0].userId).toBe(users[who].id);
+      const full = await api('get', '/api/products', who)
+        .query({ name: prefix, pageSize: 10 })
+        .expect(200);
+      expect(
+        new Set(full.body.list.map((p: { userId: string }) => p.userId)),
+      ).toEqual(
+        new Set(['viewer', 'operator', 'other'].map((name) => users[name].id)),
+      );
+      await api('get', '/api/products/' + productId, who).expect(200);
       const empty = await api('get', '/api/products', who)
         .query({ name: prefix, minPrice: '11' })
         .expect(200);
@@ -104,15 +112,59 @@ describe.sequential('RBAC and resource scope HTTP API', () => {
       expect(empty.body.list).toEqual([]);
     },
   );
-  it('hides other-owned and missing products behind identical 404 responses', async () => {
+  it('shares reads but hides unauthorized writes and missing products behind identical 404 responses', async () => {
     for (const id of [productId, randomUUID()])
-      for (const method of ['get', 'patch', 'delete'] as const) {
+      for (const method of ['patch', 'delete'] as const) {
         const r = await api(method, '/api/products/' + id, 'other')
           .send(method === 'patch' ? { stock: 2 } : undefined)
           .expect(404);
         expect(r.body.message).toBe('商品不存在');
       }
   });
+  it.each(['viewer', 'operator', 'admin'])(
+    'checks the selected login entrance against the database role for %s',
+    async (who) => {
+      const user = await db.user.findUniqueOrThrow({
+        where: { id: users[who].id },
+      });
+      const body = {
+        username: user.username,
+        password: 'Rbac-test-password-123!',
+      };
+      const match = await request(app.getHttpServer())
+        .post('/api/auth/login')
+        .send({ ...body, loginRole: user.role })
+        .expect(200);
+      expect(match.body.user.role).toBe(user.role);
+      expect(match.body.user).not.toHaveProperty('passwordHash');
+      const wrongRole = user.role === 'ADMIN' ? 'OPERATOR' : 'ADMIN';
+      const mismatch = await request(app.getHttpServer())
+        .post('/api/auth/login')
+        .send({ ...body, loginRole: wrongRole })
+        .expect(401);
+      expect(mismatch.body).not.toHaveProperty('accessToken');
+      await request(app.getHttpServer())
+        .post('/api/auth/login')
+        .send({ ...body, loginRole: 'ROOT' })
+        .expect(400);
+      await request(app.getHttpServer())
+        .post('/api/auth/login')
+        .send({ ...body, role: 'ADMIN' })
+        .expect(400);
+      await request(app.getHttpServer())
+        .post('/api/auth/login')
+        .send({
+          ...body,
+          password: 'Wrong-password-123!',
+          loginRole: wrongRole,
+        })
+        .expect(401)
+        .expect((r) => expect(r.body.message).toBe('用户名或密码错误'));
+      expect(
+        (await db.user.findUniqueOrThrow({ where: { id: user.id } })).role,
+      ).toBe(user.role);
+    },
+  );
   it('allows own writes and administrator writes without transferring ownership', async () => {
     await api('patch', '/api/products/' + productId)
       .send({ stock: 6 })
@@ -316,6 +368,12 @@ describe.sequential('RBAC and resource scope HTTP API', () => {
     expect(doc.components.schemas.UserResponseDto.properties.role.enum).toEqual(
       ['VIEWER', 'OPERATOR', 'ADMIN'],
     );
+    expect(doc.components.schemas.LoginDto.properties.loginRole.enum).toEqual([
+      'VIEWER',
+      'OPERATOR',
+      'ADMIN',
+    ]);
+    expect(doc.components.schemas.LoginDto.required).not.toContain('loginRole');
     expect(doc.components.schemas.AssignRoleDto.required).toContain('role');
     for (const [path, method] of [
       ['/api/admin/users', 'get'],

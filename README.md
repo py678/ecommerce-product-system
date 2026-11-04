@@ -7,7 +7,7 @@
 
 已完成数据库、注册登录、JWT、商品/分类 CRUD、商品封面上传与预览、分页搜索、Swagger、React 管理页面和 Docker Compose 联合启动。Linux 容器内 98 项接口测试、2 项数据库测试及通过 Nginx 入口的 4 组 Edge 浏览器流程通过。
 
-前后端启动后访问 [管理后台](http://localhost:5173)，首次使用自行注册账号。访客只读自己的商品，运营人员管理自己的商品，管理员管理全部商品；分类全局可读，仅管理员维护。新注册默认访客，已有账号升级为运营人员。本地配置、验证及生产部署注意事项见 [启动指南](docs/local-start.md)。
+前后端启动后访问 [管理后台](http://localhost:5173)，首次使用自行注册账号。所有登录角色均可查看全部商品；访客只读，运营人员仅管理自己的商品，管理员管理全部商品；分类全局可读，仅管理员维护。新注册默认访客，已有账号升级为运营人员。本地配置、验证及生产部署注意事项见 [启动指南](docs/local-start.md)。
 
 容器启动：在根目录执行 `node scripts/setup-compose.ts`、`docker compose up -d --build`，访问 http://localhost:8088。需要已运行的 Docker Linux 引擎；完整步骤与数据维护见 [Docker 部署指南](docs/deployment.md)。默认两套数据库独立；可通过 `docker-compose.sync.yml` 启用双向同步，让本机 Prisma Studio 与 8088 后台共享业务数据。
 

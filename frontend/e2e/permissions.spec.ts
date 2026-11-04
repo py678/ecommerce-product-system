@@ -226,3 +226,79 @@ test('revoked security credentials clear the session and redirect to login', asy
     await page.evaluate(() => sessionStorage.getItem('silk-shop.access-token')),
   ).toBeNull();
 });
+
+for (const role of ['VIEWER', 'OPERATOR'] as const) {
+  test(
+    role + ' can view a foreign product but has no edit/delete actions',
+    async ({ page }) => {
+      const { product } = await setup(page, role);
+      product.userId = '00000000-0000-4000-8000-000000000099';
+      product.user.username = 'foreign_owner';
+      await page.route('**/api/products/' + product.id, (r) =>
+        r.fulfill({ json: product }),
+      );
+      await page.goto('/products');
+      await expect(
+        page.getByText('foreign_owner', { exact: true }),
+      ).toBeVisible();
+      await expect(
+        page.getByRole('button', { name: '编辑', exact: true }),
+      ).not.toBeVisible();
+      await expect(
+        page.getByRole('button', { name: '删除', exact: true }),
+      ).not.toBeVisible();
+      await page.getByRole('link', { name: '详情', exact: true }).click();
+      await expect(
+        page.getByRole('heading', { name: product.name, exact: true }),
+      ).toBeVisible();
+      await expect(
+        page.getByRole('button', { name: '编辑商品', exact: true }),
+      ).not.toBeVisible();
+      await expect(
+        page.getByRole('button', { name: '删除商品', exact: true }),
+      ).not.toBeVisible();
+    },
+  );
+}
+for (const [role, label] of Object.entries({
+  VIEWER: '访客',
+  OPERATOR: '运营人员',
+  ADMIN: '管理员',
+})) {
+  test(
+    label + ' login entrance submits a role check and reports mismatch',
+    async ({ page }) => {
+      await page.route('**/api/auth/login', async (r) => {
+        expect(r.request().postDataJSON()).toEqual({
+          username: 'example_user',
+          password: 'Example-password-123!',
+          loginRole: role,
+        });
+        await r.fulfill({
+          status: 401,
+          json: { message: '账号角色与所选登录入口不匹配，请选择正确入口' },
+        });
+      });
+      await page.goto('/login');
+      await page.getByText(label, { exact: true }).click();
+      await page.getByLabel('用户名', { exact: true }).fill('example_user');
+      await page
+        .getByLabel('密码', { exact: true })
+        .fill('Example-password-123!');
+      await page.getByRole('button', { name: '登录工作台' }).click();
+      await expect(
+        page.getByText('账号角色与所选登录入口不匹配，请选择正确入口', {
+          exact: true,
+        }),
+      ).toBeVisible();
+      expect(
+        await page.evaluate(() =>
+          sessionStorage.getItem('silk-shop.access-token'),
+        ),
+      ).toBeNull();
+      await expect(page.getByLabel('用户名', { exact: true })).toHaveValue(
+        'example_user',
+      );
+    },
+  );
+}

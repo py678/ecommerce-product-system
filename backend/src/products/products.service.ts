@@ -58,10 +58,10 @@ export class ProductsService {
     }
   }
 
-  async findAll(query: ProductQueryDto, actor: Actor): Promise<ProductPageDto> {
+  async findAll(query: ProductQueryDto): Promise<ProductPageDto> {
     const filters = productListQuery(query, this.threshold);
     const where: Prisma.ProductWhereInput = {
-      AND: [filters.where, productScope(actor)],
+      ...filters.where,
     };
     const orderBy = filters.orderBy;
     const [items, total] = await this.db.$transaction(
@@ -89,9 +89,16 @@ export class ProductsService {
     };
   }
 
-  async findOne(id: string, actor: Actor): Promise<ProductResponseDto> {
+  async findOne(id: string): Promise<ProductResponseDto> {
+    return this.findInScope(id, {});
+  }
+
+  private async findInScope(
+    id: string,
+    scope: Prisma.ProductWhereInput,
+  ): Promise<ProductResponseDto> {
     const product = await this.db.product.findUnique({
-      where: { ...productScope(actor), id },
+      where: { ...scope, id },
       include: PRODUCT_RELATIONS,
     });
     if (!product) throw new NotFoundException('商品不存在');
@@ -105,7 +112,7 @@ export class ProductsService {
   ): Promise<ProductResponseDto> {
     if (Object.values(dto).every((value) => value === undefined))
       throw new BadRequestException('请至少提供一个可更新字段');
-    await this.findOne(id, actor);
+    await this.findInScope(id, productScope(actor));
     if (dto.categoryId !== undefined)
       await this.requireCategory(dto.categoryId);
     try {
@@ -130,7 +137,7 @@ export class ProductsService {
   }
 
   async remove(id: string, actor: Actor): Promise<void> {
-    await this.findOne(id, actor);
+    await this.findInScope(id, productScope(actor));
     try {
       await this.db.product.delete({ where: { ...productScope(actor), id } });
     } catch (error) {

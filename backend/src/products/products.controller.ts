@@ -60,27 +60,21 @@ export class ProductsController {
 
   @Get()
   @ApiOperation({
-    summary: '商品筛选排序；管理员访问全部，其余仅自己，列表与总数同范围',
+    summary: '商品筛选排序；所有登录角色共享查看，列表与总数同筛选范围',
   })
   @ApiOkResponse({ type: ProductPageDto })
   @RequirePermissions('product:read')
-  findAll(
-    @Query() query: ProductQueryDto,
-    @Req() request: AuthenticatedRequest,
-  ) {
-    return this.products.findAll(query, request.user);
+  findAll(@Query() query: ProductQueryDto) {
+    return this.products.findAll(query);
   }
 
   @Get(':id')
-  @ApiOperation({ summary: '查看商品详情' })
+  @ApiOperation({ summary: '所有登录角色可查看商品详情' })
   @ApiOkResponse({ type: ProductResponseDto })
-  @ApiNotFoundResponse({ description: '商品不存在或不在可访问范围内' })
+  @ApiNotFoundResponse({ description: '商品不存在' })
   @RequirePermissions('product:read')
-  findOne(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Req() request: AuthenticatedRequest,
-  ) {
-    return this.products.findOne(id, request.user);
+  findOne(@Param('id', ParseUUIDPipe) id: string) {
+    return this.products.findOne(id);
   }
 
   @Patch(':id')

@@ -58,6 +58,11 @@ export class AuthService {
     );
     if (!user || !passwordMatches)
       throw new UnauthorizedException('用户名或密码错误');
+    // An entrance choice never changes the database role or the granted permissions.
+    if (dto.loginRole !== undefined && dto.loginRole !== user.role)
+      throw new UnauthorizedException(
+        '账号角色与所选登录入口不匹配，请选择正确入口',
+      );
     // Explicitly construct the response so password hashes never reach the client.
     const profile = publicUser(user);
     return this.issueToken(profile, user.tokenVersion);

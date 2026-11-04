@@ -31,6 +31,9 @@ const uploadedPaths: string[] = [];
 
 async function login(page: Page, username = ownerName) {
   await page.goto('/login');
+  await page
+    .getByText(username === ownerName ? '管理员' : '运营人员', { exact: true })
+    .click();
   await page.getByLabel('用户名', { exact: true }).fill(username);
   await page.getByLabel('密码', { exact: true }).fill(password);
   await page.getByRole('button', { name: '登录工作台' }).click();
@@ -255,6 +258,7 @@ test('validates registration, reports duplicate/login errors and supports mobile
   await page.getByRole('button', { name: '注册并进入工作台' }).click();
   await expect(page.getByText('用户名或邮箱已被使用')).toBeVisible();
   await page.getByRole('link', { name: '立即登录', exact: true }).click();
+  await page.getByText('管理员', { exact: true }).click();
   await page.getByLabel('用户名', { exact: true }).fill(ownerName);
   await page.getByLabel('密码', { exact: true }).fill('Wrong-password-123!');
   await page.getByRole('button', { name: '登录工作台' }).click();
@@ -286,7 +290,7 @@ test('validates registration, reports duplicate/login errors and supports mobile
   await expect(page).toHaveURL(/\/login$/);
 });
 
-test('hides foreign products, recovers from network failure and redirects expired sessions', async ({
+test('shares foreign products read-only, recovers from network failure and redirects expired sessions', async ({
   page,
 }) => {
   await login(page, otherName);
@@ -303,6 +307,13 @@ test('hides foreign products, recovers from network failure and redirects expire
   await filtered;
   await expect(
     page.getByRole('row').filter({ hasText: fixtureProduct }),
+  ).toBeVisible();
+  const foreignRow = page.getByRole('row').filter({ hasText: fixtureProduct });
+  await expect(
+    foreignRow.getByRole('button', { name: '编辑', exact: true }),
+  ).not.toBeVisible();
+  await expect(
+    foreignRow.getByRole('button', { name: '删除', exact: true }),
   ).not.toBeVisible();
   await expect(
     page.getByRole('button', { name: '刷新', exact: true }),

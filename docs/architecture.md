@@ -19,7 +19,7 @@ flowchart LR
 - `DatabaseModule`：管理 Prisma 生命周期，启动连接、关闭时释放连接池。
 - `AuthModule`：注册、登录、当前用户；导出 JWT Guard 与 PermissionsGuard，提供当前数据库角色及静态权限映射。
 - `CategoriesModule`：分类全局可读，写入仅管理员；分页搜索、商品数量；通过数据库外键阻止删除引用中的分类。
-- `ProductsModule`：按角色限定商品读写范围；列表和计数共用归属 where，详情及写条件同样附带归属；管理员范围为全部，其他账号仅自己。
+- `ProductsModule`：商品列表和详情供所有登录角色共享查看；列表和计数共用筛选 where；写条件单独附带归属，管理员可写全部，运营人员仅自己，访客只读。
 - `configure-app.ts`：统一 `/api` 前缀、DTO 验证、CORS 和 Swagger，并与集成测试共用配置。
 - `prisma/`：schema 与版本迁移；开发迁移使用独立影子库。
 - `test/`：真实数据库 HTTP 测试；`scripts/`：建库及底层数据库约束验证。
@@ -54,6 +54,8 @@ UsersModule 仅允许基于 JWT 身份查看资料、修改邮箱与独立改密
 
 ## 角色权限
 
-新增 AdminModule 提供管理员账号列表与角色调整；AuthModule 的 PermissionsGuard 读取 RequirePermissions 元数据，缺少权限声明默认拒绝。JWT Guard 先校验签名、过期和版本，再将数据库角色映射为公开权限。ProductsService 将 productScope 与筛选条件组合，同一个 where 传给 findMany 和 count；更新/删除的实际 where 也保留范围。非管理员不能通过指定资源 ID 绕过归属。
+新增 AdminModule 提供管理员账号列表与角色调整；AuthModule 的 PermissionsGuard 读取 RequirePermissions 元数据，缺少权限声明默认拒绝。JWT Guard 先校验签名、过期和版本，再将数据库角色映射为公开权限。ProductsService 的共享读取使用同一个筛选 where 传给 findMany 和 count；productScope 仅用于修改/删除，实际写入 where 保留归属限制。运营人员不能通过指定资源 ID 修改或删除他人商品。
 
 前端 RequirePermission 控制直接路由访问，can/canManageProduct 控制菜单和操作入口；这些仅改善界面，后端独立鉴权。角色调整与审计/版本递增采用单库事务，受控首次管理员脚本复用同一事务锁。同步桥传递 role 并保护较高版本的角色和密码；审计记录保留在发起操作的数据库。异步双库不提供跨库角色变更串行化，详见 [RBAC](rbac.md)。
+
+登录页通过 loginRole 声明所选入口，AuthService 在密码核验成功后比对数据库角色；令牌及权限仍来自数据库，入口选择不会提升角色。旧客户端可省略 loginRole。

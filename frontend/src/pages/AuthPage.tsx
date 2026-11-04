@@ -1,8 +1,10 @@
 import { useState } from 'react';
-import { Alert, App, Button, Form, Input } from 'antd';
+import { Alert, App, Button, Form, Input, Radio } from 'antd';
 import { ArrowRightOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { Link, Navigate, useLocation } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
+import type { UserRole } from '../api/types';
+import { ROLE_LABELS } from '../auth/permissions';
 import { useAuth } from '../auth/useAuth';
 import { LoadingScreen } from '../components/PageFeedback';
 import { passwordRules, trimInput, usernameRules } from '../utils/format';
@@ -12,6 +14,7 @@ interface AuthFields {
   email: string;
   password: string;
   confirm: string;
+  loginRole: UserRole;
 }
 
 export function AuthPage({ register = false }: { register?: boolean }) {
@@ -46,6 +49,7 @@ export function AuthPage({ register = false }: { register?: boolean }) {
         : await api.auth.login({
             username: values.username,
             password: values.password,
+            loginRole: values.loginRole,
           });
       signIn(response);
       void message.success(register ? '注册成功，欢迎使用' : '登录成功');
@@ -96,7 +100,7 @@ export function AuthPage({ register = false }: { register?: boolean }) {
           <h2>{register ? '创建账号' : '欢迎回来'}</h2>
           <p className="muted">
             {register
-              ? '注册后即可开始管理商品和分类。'
+              ? '新账号默认为访客，可查看全部商品和分类。'
               : '登录账号，继续今天的管理工作。'}
           </p>
           {(submitError || notice || error) && (
@@ -110,11 +114,33 @@ export function AuthPage({ register = false }: { register?: boolean }) {
           <Form<AuthFields>
             key={register ? 'register' : 'login'}
             layout="vertical"
+            initialValues={{ loginRole: 'OPERATOR' }}
             size="large"
             requiredMark={false}
             onFinish={submit}
             disabled={saving}
           >
+            {!register && (
+              <Form.Item
+                label="登录身份"
+                name="loginRole"
+                rules={[{ required: true, message: '请选择登录身份' }]}
+              >
+                <Radio.Group
+                  optionType="button"
+                  buttonStyle="solid"
+                  block
+                  options={Object.entries(ROLE_LABELS).map(
+                    ([value, label]) => ({ value, label }),
+                  )}
+                />
+              </Form.Item>
+            )}
+            {!register && (
+              <p className="muted">
+                请选择账号已有角色，登录入口不会改变账号权限。
+              </p>
+            )}
             <Form.Item
               label="用户名"
               name="username"
