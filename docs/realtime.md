@@ -29,7 +29,7 @@
 
 HTTP 与 Socket 共享 JWT 验证服务：校验 HS256 签名、issuer、audience、过期时间、sub 和 tokenVersion，再查询用户并比对数据库 tokenVersion。HTTP Guard 保留原认证行为，不把 HTTP Guard 直接套在 Socket 上。
 
-连接成功前完成验证，由服务端决定身份和接收范围；未完成认证的连接不可收到广播。无效、过期、撤销或缺失 JWT 通过 connect_error 拒绝，错误不包含凭据。设置明确的认证错误 code，网络错误不错误清除正常登录态。
+连接成功前完成验证，由服务端决定身份和接收范围；未完成认证的连接不可收到广播。无效、过期、撤销或缺失 JWT 通过 connect_error 拒绝，错误不包含凭据。设置明确的认证错误 code：UNAUTHORIZED（无效/过期/缺失凭证）、SESSION_REVOKED（版本撤销）、AUTH_UNAVAILABLE（校验服务暂不可用，可重试）。网络或临时数据库错误不清除正常登录态。
 
 登录后建立连接，退出后断开；服务器在 JWT 到期时断开，并定期（30 秒）重新校验数据库凭证版本，覆盖跨库同步/外部角色密码修改。应用内改密/改角色必须在事务提交后立即通知目标用户并断开旧连接，不影响其他用户。不缓存 tokenVersion。周期校验避免重叠，断连/应用销毁清理定时器。限制握手认证等待，连接异常不影响 REST 使用。
 
@@ -68,3 +68,95 @@ Socket 与 HTTP 共用后端端口 3000，不额外暴露端口。Nginx `/socket
 7. Vite 开发代理及 Docker/Nginx 8088 入口可建立 WebSocket，具备 Upgrade/Connection 配置。集成测试使用隔离应用/数据库，不自动重启当前业务服务器。
 
 交付顺序：规格独立提交 → 测试先红 → 后端实现转绿 → 前端与代理 → 相关回归/文档 → 代码提交。验证结果与启动、双窗口操作方法在交付时提供；未执行的检查如实注明。
+
+## 8. 启动与双窗口手动验收
+
+本次升级无需数据库结构迁移。现有服务器必须重新构建后才能看到新功能；只使用 docker compose start 不会更新代码。首次初始化与私有配置沿用部署指南，不覆盖已有 .env。
+
+推荐 Docker（先打开 Docker Desktop，等 Linux Engine 就绪），在项目根目录 PowerShell 执行：
+
+```powershell
+cd D:\考核项目
+docker compose up -d --build
+docker compose ps -a
+```
+
+已启用本机/Docker 双向同步的环境，用下面命令替代上面的 up 命令，保留同步桥：
+
+```powershell
+docker compose -f docker-compose.yml -f docker-compose.sync.yml --profile sync up -d --build
+```
+
+访问 http://localhost:8088。使用同一套入口和域名；FRONTEND_ORIGIN 必须与浏览器的协议、主机和端口完全一致。默认 Docker 为 http://localhost:8088，本机开发为 http://localhost:5173；不要随意混用 127.0.0.1。若 Docker 命令找不到，按部署指南补 PATH。
+
+本机开发可分别打开两个终端执行（数据库沿用已经配置好的本机 PostgreSQL）：
+
+```powershell
+# 终端一
+cd D:\考核项目\backend
+npm.cmd ci
+npm.cmd run start:dev
+# 终端二
+cd D:\考核项目\frontend
+npm.cmd ci
+npm.cmd run dev
+```
+
+开发页面 http://localhost:5173，后端 Swagger http://localhost:3000/docs。首次安装后如缺生成 Prisma Client，先在 backend 执行 npm.cmd run db:generate。
+
+双窗口步骤：
+
+1. Edge 普通窗口登录管理员 py666；Edge InPrivate 或另一浏览器登录运营人员。分别打开上述同一地址的商品管理页，右上角应为“已连接”。使用独立窗口会话，避免复制标签页时复用 sessionStorage。
+2. 两侧设置能匹配同一商品的筛选条件；可在运营窗口设置价格排序或第二页。管理员修改该商品库存/名称，另一侧自动刷新；分页、排序、URL 条件保持不变。商品不再满足条件时退出结果集是正常行为。
+3. 连续修改多个商品，观察请求合并（最后一条通知后约 300ms）。运营人员能看见他人商品，仍不能编辑/删除；自己创建的商品可以管理。
+4. 测试编辑保护：管理员打开编辑框并输入未保存内容，由另一窗口修改同一商品（需该窗口有原有写权限）。当前编辑内容保留并出现变更提示，关闭后列表补拉。分类变动也更新选项而不重置表单。
+5. 在测试窗口开发者工具 Network 切 Offline，等心跳发现断线后显示中断；恢复 Online 后重连并补拉。浏览器 Offline 不一定立即关闭现有 WebSocket；需等待心跳或关闭测试连接。Network 的 WS 应能看到 /socket.io/ 升级请求，状态 101。
+6. 同账号在两个独立会话登录，任一会话改密码，两者均回登录页；管理员修改另一用户角色，该用户旧会话同样失效。测试时记录自己的新密码。
+
+直接在 Prisma Studio/数据库改商品不会实时推送，见第 6 节；REST 手动刷新始终可用。
+
+## 9. 自动验证与文件职责
+
+- 后端先红：未实现时运行 realtime.e2e-spec.ts 因缺少 realtime.module.js 失败；实现后使用真实随机端口 Socket、真实 JWT 与模拟持久层验收，不连接业务数据库。
+- 后端单独验证：backend 下先 npm.cmd run build，再 node node_modules/vitest/vitest.mjs run --config vitest.config.e2e.ts test/realtime.e2e-spec.ts。
+- 完整实时专项：安装前后端依赖后，在 backend 执行 npm.cmd run test:realtime。要求本机 PostgreSQL 可用、当前开发账号可创建 schema，并安装 Edge。脚本自动创建随机隔离 schema、部署既有迁移、运行后端实时测试和双窗口浏览器测试，最后只清理自身 schema；不清空业务库。浏览器实时测试在隔离库预置账号并签发测试凭证，不消耗真实注册/登录接口限流额度。
+- 验证范围包括 JWT、跨用户广播、归属条件保留、失败写入/失败推送、周期撤销、到期、安全通知、连续事件合并、查询参数保留、编辑保护和断线重连。
+
+| 文件 | 职责 |
+| --- | --- |
+| backend/src/auth/access-token.service.ts | HTTP/Socket 共享 JWT 与数据库凭证校验 |
+| backend/src/auth/jwt-auth.guard.ts、auth.module.ts | HTTP Guard 复用验证服务并导出 |
+| backend/src/realtime/realtime.events.ts | 事件与原因类型 |
+| backend/src/realtime/realtime.gateway.ts | 握手、Origin、认证错误，不接受业务写事件 |
+| backend/src/realtime/realtime.service.ts | 已认证连接注册、通知、过期定时、周期校验和清理 |
+| backend/src/realtime/realtime.module.ts | 单例模块及依赖注入 |
+| backend/src/products/products.service.ts、products.module.ts | 商品成功写入后通知，保留实际归属条件 |
+| backend/src/categories/categories.service.ts、categories.module.ts | 分类成功写入后通知 |
+| backend/src/users/users.service.ts、users.module.ts | 改密事务提交后通知并撤销连接 |
+| backend/src/admin/admin-users.service.ts、admin.module.ts | 角色事务提交后通知并撤销连接 |
+| backend/test/realtime.e2e-spec.ts | 网络握手与后端事件测试 |
+| backend/test/users.spec.ts、rbac.spec.ts | 既有单测增加通知服务依赖夹具 |
+| backend/scripts/verify-realtime.ts | 自动隔离 schema 及实时专项验证 |
+| frontend/src/realtime/RealtimeProvider.tsx | 单连接生命周期及会话失效 |
+| frontend/src/realtime/realtime-context.ts、useRealtimeEvent.ts | 类型化上下文与订阅清理 |
+| frontend/src/realtime/useRealtimeRefresh.ts | 300ms 合并、暂停编辑刷新及恢复 |
+| frontend/src/realtime/ConnectionStatus.tsx | 连接状态提示 |
+| frontend/src/main.tsx、layouts/AdminLayout.tsx、index.css | Provider 挂载与响应式状态展示 |
+| frontend/src/pages/ProductsPage.tsx、CategoriesPage.tsx、ProductDetailPage.tsx | 页面刷新、编辑保护、删除详情处理 |
+| frontend/src/components/CategorySelect.tsx、ProductFormModal.tsx | 分类选项更新及未保存内容提示 |
+| frontend/e2e/realtime.spec.ts | 双账号真实浏览器验收 |
+| frontend/e2e/permissions.spec.ts、product-filters.spec.ts、profile.spec.ts | UI 模拟测试隔离真实 Socket |
+| frontend/playwright.config.ts | 隔离服务 Origin 配置 |
+| frontend/vite.config.ts、nginx.conf | polling/WebSocket 同源代理 |
+| backend/package.json、package-lock.json、frontend/package.json、package-lock.json | 依赖与锁文件、验证入口 |
+| docs/realtime.md、README.md、docs/api.md、docs/architecture.md、docs/deployment.md | 规格、契约、架构、启动与验证 |
+
+
+## 10. 本次验证记录（2026-11-05）
+
+- 按 TDD 顺序先运行新增测试，得到缺少 realtime.module.js 的红灯；实现后后端实时专项 16 项通过。
+- 最终后端全量 11 个测试文件、236 项通过，使用随机隔离 PostgreSQL schema。前端 Edge 全量 22 项通过，包含真实双窗口实时验收。
+- 双窗口验证了合法 JWT、实时事件合并、查询参数保留、编辑草稿保护、断线重连补拉、外来商品操作拒绝和改密下线。后端覆盖无效/过期/撤销/错误作用域、到期断连、周期版本检查、写入失败和推送失败隔离。
+- 前后端构建、ESLint、Prettier 最终检查通过；新增测试曾因取消按钮选择器超时和跨文件注册限流冲突失败，已分别修正测试选择器与隔离预置账号夹具，保持业务限流规则不变。
+- Nginx 配置 nginx -t 通过；一次性容器网络中的 polling → WebSocket 升级与纯 WebSocket 事件均通过。测试容器及网络已移除，未重建或重启当前 8088 业务实例；该实例需按第 8 节重建升级。
+- 本次没有修改 Prisma schema 或新增迁移文件；验证仅在自动清理的随机 schema 部署既有迁移，不 reset、不修改既有业务数据。原有未跟踪 backend/test-results/ 保留且不纳入提交。

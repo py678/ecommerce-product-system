@@ -1,5 +1,8 @@
+import { useRealtimeEvent } from '../realtime/useRealtimeEvent';
+import { useRealtimeRefresh } from '../realtime/useRealtimeRefresh';
 import { useCallback, useState } from 'react';
 import {
+  Alert,
   App,
   Button,
   Card,
@@ -40,6 +43,8 @@ function CategoryModal({
   const [form] = Form.useForm<{ name: string }>();
   const [saving, setSaving] = useState(false);
   const { message } = App.useApp();
+  const [stale, setStale] = useState(false);
+  useRealtimeEvent('category:changed', () => setStale(true));
   async function save(values: { name: string }) {
     setSaving(true);
     try {
@@ -66,6 +71,12 @@ function CategoryModal({
       mask={{ closable: !saving }}
       cancelButtonProps={{ disabled: saving }}
     >
+      {stale && (
+        <Alert
+          type="info"
+          title="分类数据已变化，当前填写内容已保留；关闭后可查看最新数据。"
+        />
+      )}
       <p className="muted">分类由所有成员共享，用于整理和筛选商品。</p>
       <Form
         form={form}
@@ -103,6 +114,11 @@ export function CategoriesPage() {
     [query],
   );
   const { data, loading, error, refresh } = useResource(load);
+  useRealtimeRefresh(refresh, {
+    products: true,
+    categories: true,
+    paused: !!modal,
+  });
 
   async function remove(category: Category) {
     setDeleting(category.id);

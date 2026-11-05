@@ -1,3 +1,4 @@
+import { useRealtimeRefresh } from '../realtime/useRealtimeRefresh';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { App, Button, Card, Empty, Popconfirm, Space, Table, Tag } from 'antd';
 import type { TableColumnsType } from 'antd';
@@ -59,6 +60,11 @@ export function ProductsPage() {
     [debouncedQuery],
   );
   const { data, loading, error, refresh } = useResource(load);
+  useRealtimeRefresh(refresh, {
+    products: true,
+    categories: true,
+    paused: !!modal || debouncing,
+  });
 
   async function remove(product: Product) {
     setDeleting(product.id);

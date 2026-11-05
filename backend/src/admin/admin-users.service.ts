@@ -1,4 +1,8 @@
 import {
+  RealtimeService,
+  notifySessionChange,
+} from '../realtime/realtime.service.js';
+import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
@@ -16,7 +20,10 @@ import type {
 } from './dto/admin-user.dto.js';
 @Injectable()
 export class AdminUsersService {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(
+    private readonly db: DatabaseService,
+    private readonly realtime: RealtimeService,
+  ) {}
   async list(query: AdminUserQueryDto): Promise<AdminUserPageDto> {
     const where: Prisma.UserWhereInput = {
       role: query.role,
@@ -52,7 +59,7 @@ export class AdminUsersService {
   }
   async assignRole(actor: Actor, id: string, dto: AssignRoleDto) {
     if (actor.id === id) throw new BadRequestException('不能修改自己的角色');
-    return this.db.$transaction(async (tx) => {
+    const updated = await this.db.$transaction(async (tx) => {
       // Serialize role changes and bootstrap; READ COMMITTED rechecks after taking the lock.
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(73510943)`;
       const currentActor = await tx.user.findUnique({
@@ -89,5 +96,7 @@ export class AdminUsersService {
       });
       return publicUser(user);
     });
+    notifySessionChange(this.realtime, id, 'securityChanged');
+    return updated;
   }
 }

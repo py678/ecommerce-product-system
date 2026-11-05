@@ -33,6 +33,7 @@ async function setup(page: Page, role: keyof typeof rolePermissions) {
     role,
     permissions: rolePermissions[role],
   };
+  await page.route('**/socket.io/**', (route) => route.abort());
   await page.addInitScript(() =>
     sessionStorage.setItem('silk-shop.access-token', 'rbac-ui-session'),
   );

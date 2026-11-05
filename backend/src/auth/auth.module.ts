@@ -1,3 +1,4 @@
+import { AccessTokenService } from './access-token.service.js';
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { DatabaseModule } from '../database/database.module.js';
@@ -31,7 +32,13 @@ import { JWT_AUDIENCE, JWT_ISSUER, readAuthConfig } from './auth.config.js';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtAuthGuard, PermissionsGuard],
-  exports: [AuthService, JwtAuthGuard, JwtModule, PermissionsGuard],
+  providers: [AccessTokenService, AuthService, JwtAuthGuard, PermissionsGuard],
+  exports: [
+    AccessTokenService,
+    AuthService,
+    JwtAuthGuard,
+    JwtModule,
+    PermissionsGuard,
+  ],
 })
 export class AuthModule {}

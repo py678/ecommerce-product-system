@@ -1,3 +1,6 @@
+import { useRealtimeEvent } from '../realtime/useRealtimeEvent';
+import { useRealtimeRefresh } from '../realtime/useRealtimeRefresh';
+import axios from 'axios';
 import { useCallback, useState } from 'react';
 import { App, Button, Card, Descriptions, Popconfirm, Space, Tag } from 'antd';
 import {
@@ -20,12 +23,34 @@ export function ProductDetailPage() {
   const { message } = App.useApp();
   const navigate = useNavigate();
   const load = useCallback(
-    (signal: AbortSignal) => api.products.get(id, signal),
-    [id],
+    (signal: AbortSignal) =>
+      api.products.get(id, signal).catch((cause: unknown) => {
+        if (
+          !signal.aborted &&
+          axios.isAxiosError(cause) &&
+          cause.response?.status === 404
+        ) {
+          void message.info('商品已删除或不可访问');
+          navigate('/products', { replace: true });
+        }
+        throw cause;
+      }),
+    [id, message, navigate],
   );
   const { data: product, loading, error, refresh } = useResource(load);
   const [editing, setEditing] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  useRealtimeRefresh(refresh, {
+    products: true,
+    categories: true,
+    paused: editing,
+  });
+  useRealtimeEvent('product:changed', (event) => {
+    if (event.id === id && event.operation === 'deleted') {
+      void message.info('商品已删除');
+      navigate('/products', { replace: true });
+    }
+  });
 
   if (loading) return <LoadingScreen />;
   if (error || !product)

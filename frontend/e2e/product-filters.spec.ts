@@ -33,6 +33,7 @@ const product = {
 };
 
 test.beforeEach(async ({ page }) => {
+  await page.route('**/socket.io/**', (route) => route.abort());
   await page.addInitScript(() =>
     sessionStorage.setItem('silk-shop.access-token', 'mock-filter-session'),
   );

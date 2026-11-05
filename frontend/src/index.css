@@ -611,3 +611,16 @@ p {
 .product-list-filters .ant-select {
   width: 100%;
 }
+
+.realtime-status {
+  white-space: nowrap;
+}
+@media (max-width: 767px) {
+  .realtime-status .ant-badge-status-text {
+    font-size: 12px;
+    margin-inline-start: 4px;
+  }
+  .topbar > .ant-space {
+    gap: 6px !important;
+  }
+}

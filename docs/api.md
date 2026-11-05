@@ -184,3 +184,7 @@ PATCH 只能提交 name、description、coverImage、price、stock、categoryId 
 ## 两角色注册
 
 POST /api/auth/register 的 role 可省略（默认 OPERATOR），或为 OPERATOR / ADMIN；公司内部 ID 使用字符串字段 companyId。ADMIN 需提供与后端私有环境变量 ADMIN_REGISTRATION_COMPANY_ID 完全一致的值；缺失或错误返回 400“公司内部 ID 不正确”，未配置则返回 503。OPERATOR 无需 companyId。非法角色、额外归属/安全字段返回 400。正确注册返回 201 并自动登录，账号角色与权限来自服务端。companyId 不写入数据库、响应、前端构建或日志；实际值不得提交。管理员注册继续受每 IP 每分钟 5 次注册限流。
+
+## Socket.IO 实时事件
+
+REST 路由、DTO、权限点及 Swagger 契约保持不变。Socket.IO 使用同端口 /socket.io/，JWT 通过 auth.token 提交，并复用 HTTP 签名/过期/tokenVersion 校验。product:changed、category:changed 只传资源 ID、操作和事件 ID；收到后重新请求原列表接口。session:invalidated 只发给目标用户。完整事件、错误码与连接规则见 [实时通知规格](realtime.md)。Swagger/OpenAPI 仅描述 HTTP。

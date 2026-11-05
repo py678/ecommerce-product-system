@@ -17,6 +17,7 @@ const user = {
   updatedAt: '2026-01-01T00:00:00Z',
 };
 test.beforeEach(async ({ page }) => {
+  await page.route('**/socket.io/**', (route) => route.abort());
   await page.addInitScript(() =>
     sessionStorage.setItem('silk-shop.access-token', 'profile-test-session'),
   );

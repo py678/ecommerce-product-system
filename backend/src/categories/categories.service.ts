@@ -1,4 +1,8 @@
 import {
+  RealtimeService,
+  notifyResourceChange,
+} from '../realtime/realtime.service.js';
+import {
   BadRequestException,
   ConflictException,
   Injectable,
@@ -26,15 +30,20 @@ function toResponse(category: CategoryRecord): CategoryResponseDto {
 
 @Injectable()
 export class CategoriesService {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(
+    private readonly db: DatabaseService,
+    private readonly realtime: RealtimeService,
+  ) {}
 
   async create(dto: CreateCategoryDto): Promise<CategoryResponseDto> {
-    return toResponse(
+    const response = toResponse(
       await this.db.category.create({
         data: { name: dto.name },
         include: CATEGORY_COUNT,
       }),
     );
+    notifyResourceChange(this.realtime, 'category', response.id, 'created');
+    return response;
   }
 
   async findAll(query: PaginationDto): Promise<CategoryPageDto> {
@@ -79,13 +88,15 @@ export class CategoriesService {
     if (dto.name === undefined)
       throw new BadRequestException('请至少提供一个可更新字段');
     try {
-      return toResponse(
+      const response = toResponse(
         await this.db.category.update({
           where: { id },
           data: { name: dto.name },
           include: CATEGORY_COUNT,
         }),
       );
+      notifyResourceChange(this.realtime, 'category', response.id, 'updated');
+      return response;
     } catch (error) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -100,6 +111,7 @@ export class CategoriesService {
     try {
       // Let the database enforce the reference restriction, including concurrent product creation.
       await this.db.category.delete({ where: { id } });
+      notifyResourceChange(this.realtime, 'category', id, 'deleted');
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError) {
         if (error.code === 'P2025') throw new NotFoundException('分类不存在');

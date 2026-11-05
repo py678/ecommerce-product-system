@@ -1,4 +1,8 @@
 import {
+  RealtimeService,
+  notifySessionChange,
+} from '../realtime/realtime.service.js';
+import {
   BadRequestException,
   ConflictException,
   Injectable,
@@ -15,7 +19,10 @@ export const PASSWORD_CHANGED_MESSAGE = '密码已修改，请重新登录';
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(
+    private readonly db: DatabaseService,
+    private readonly realtime: RealtimeService,
+  ) {}
 
   async updateProfile(
     id: string,
@@ -69,6 +76,7 @@ export class UsersService {
       if (result.count !== 1)
         throw new UnauthorizedException(PASSWORD_CHANGED_MESSAGE);
     });
+    notifySessionChange(this.realtime, id, 'passwordChanged');
     return { message: PASSWORD_CHANGED_MESSAGE };
   }
 }

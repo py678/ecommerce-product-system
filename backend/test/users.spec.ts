@@ -1,3 +1,4 @@
+import type { RealtimeService } from '../dist/realtime/realtime.service.js';
 import 'reflect-metadata';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
@@ -29,7 +30,10 @@ describe('Personal centre validation and password transaction', () => {
       ),
     };
     return {
-      service: new UsersService(db as unknown as DatabaseService),
+      service: new UsersService(
+        db as unknown as DatabaseService,
+        { revokeUser: vi.fn() } as unknown as RealtimeService,
+      ),
       write,
       db,
     };

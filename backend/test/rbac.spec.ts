@@ -1,3 +1,4 @@
+import type { RealtimeService } from '../dist/realtime/realtime.service.js';
 import 'reflect-metadata';
 import { Reflector } from '@nestjs/core';
 import type { ExecutionContext } from '@nestjs/common';
@@ -50,7 +51,10 @@ describe('RBAC fail-closed permissions and role transaction', () => {
       $transaction: vi.fn(async (fn: (tx: unknown) => unknown) => fn(tx)),
     };
     return {
-      service: new AdminUsersService(db as unknown as DatabaseService),
+      service: new AdminUsersService(
+        db as unknown as DatabaseService,
+        { revokeUser: vi.fn() } as unknown as RealtimeService,
+      ),
       tx,
       db,
       update,

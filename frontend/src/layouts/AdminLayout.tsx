@@ -1,3 +1,4 @@
+import { ConnectionStatus } from '../realtime/ConnectionStatus';
 import { useState } from 'react';
 import { Avatar, Button, Layout, Menu, Space, Typography } from 'antd';
 import {
@@ -109,6 +110,7 @@ export function AdminLayout() {
             </span>
           </Space>
           <Space size={12}>
+            <ConnectionStatus />
             <Avatar className="user-avatar">
               {user?.username.slice(0, 1).toUpperCase()}
             </Avatar>

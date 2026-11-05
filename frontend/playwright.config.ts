@@ -26,7 +26,10 @@ export default defineConfig({
             'npm.cmd --prefix ../backend run build && npm.cmd --prefix ../backend run start:prod',
           url: 'http://127.0.0.1:3002/docs',
           reuseExistingServer: false,
-          env: { PORT: '3002' },
+          env: {
+            PORT: '3002',
+            FRONTEND_ORIGIN: 'http://127.0.0.1:5174',
+          },
           timeout: 120000,
         },
         {

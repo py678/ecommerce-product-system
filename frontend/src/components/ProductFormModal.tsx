@@ -1,5 +1,6 @@
+import { useRealtimeEvent } from '../realtime/useRealtimeEvent';
 import { useState } from 'react';
-import { App, Form, Input, InputNumber, Modal } from 'antd';
+import { Alert, App, Form, Input, InputNumber, Modal } from 'antd';
 import { api, errorMessage } from '../api/client';
 import type { Product, ProductInput } from '../api/types';
 import { trimInput } from '../utils/format';
@@ -19,6 +20,14 @@ export function ProductFormModal({
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const { message } = App.useApp();
+  const [stale, setStale] = useState(false);
+  useRealtimeEvent('product:changed', (event) => {
+    if (event.id === product?.id) setStale(true);
+  });
+  useRealtimeEvent('category:changed', () => setStale(true));
+  useRealtimeEvent('realtime:connected', () => {
+    if (product) setStale(true);
+  });
 
   async function save(values: ProductInput) {
     if (uploading) return;
@@ -50,6 +59,13 @@ export function ProductFormModal({
       mask={{ closable: !saving && !uploading }}
       cancelButtonProps={{ disabled: saving || uploading }}
     >
+      {stale && (
+        <Alert
+          type="info"
+          showIcon
+          title="数据可能已变化，当前填写内容已保留；可关闭后重新打开查看最新数据。"
+        />
+      )}
       <Form<ProductInput>
         form={form}
         layout="vertical"

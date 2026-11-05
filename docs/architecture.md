@@ -61,3 +61,7 @@ UsersModule 仅允许基于 JWT 身份查看资料、修改邮箱与独立改密
 登录页通过 loginRole 声明所选入口，AuthService 在密码核验成功后比对数据库角色；令牌及权限仍来自数据库，入口选择不会提升角色。旧客户端可省略 loginRole。
 
 注册提供 OPERATOR 与 ADMIN 选择，默认 OPERATOR。管理员注册在服务端验证 ADMIN_REGISTRATION_COMPANY_ID；未配置时关闭管理员注册，校验值不存数据库、不返回、不写入前端。历史角色审计列改为文本以保留原始证据，当前用户角色枚举只保留两项。
+
+## 实时通知模块
+
+RealtimeModule 导入 AuthModule，共享 AccessTokenService，与 HTTP Guard 使用相同 JWT 和数据库 tokenVersion 验证。商品、分类及用户安全服务导入 RealtimeModule，仅在写入/事务提交后通知；AuthModule 不反向依赖 RealtimeModule，避免循环依赖。网关无业务写 handler，连接注册表只包含已认证连接；过期定时与 30 秒版本检查负责失效清理。前端 AuthProvider 内集中挂载 RealtimeProvider，通过订阅 hook 和 300ms 刷新队列重新调用 REST。无需新表；数据库直改、多实例与可靠投递边界见 [实时通知规格](realtime.md)。

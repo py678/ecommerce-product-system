@@ -1,4 +1,8 @@
 import {
+  RealtimeService,
+  notifyResourceChange,
+} from '../realtime/realtime.service.js';
+import {
   BadRequestException,
   Injectable,
   NotFoundException,
@@ -31,7 +35,10 @@ function toResponse(product: ProductRecord): ProductResponseDto {
 @Injectable()
 export class ProductsService {
   private readonly threshold = lowStockThreshold();
-  constructor(private readonly db: DatabaseService) {}
+  constructor(
+    private readonly db: DatabaseService,
+    private readonly realtime: RealtimeService,
+  ) {}
 
   async create(
     userId: string,
@@ -39,7 +46,7 @@ export class ProductsService {
   ): Promise<ProductResponseDto> {
     await this.requireCategory(dto.categoryId);
     try {
-      return toResponse(
+      const response = toResponse(
         await this.db.product.create({
           data: {
             userId,
@@ -53,6 +60,8 @@ export class ProductsService {
           include: PRODUCT_RELATIONS,
         }),
       );
+      notifyResourceChange(this.realtime, 'product', response.id, 'created');
+      return response;
     } catch (error) {
       return this.handleWriteError(error);
     }
@@ -117,7 +126,7 @@ export class ProductsService {
       await this.requireCategory(dto.categoryId);
     try {
       // Include ownership in the write condition as well as the human-readable permission check.
-      return toResponse(
+      const response = toResponse(
         await this.db.product.update({
           where: { ...productScope(actor), id },
           data: {
@@ -131,6 +140,8 @@ export class ProductsService {
           include: PRODUCT_RELATIONS,
         }),
       );
+      notifyResourceChange(this.realtime, 'product', response.id, 'updated');
+      return response;
     } catch (error) {
       return this.handleWriteError(error);
     }
@@ -140,6 +151,7 @@ export class ProductsService {
     await this.findInScope(id, productScope(actor));
     try {
       await this.db.product.delete({ where: { ...productScope(actor), id } });
+      notifyResourceChange(this.realtime, 'product', id, 'deleted');
     } catch (error) {
       this.handleWriteError(error);
     }

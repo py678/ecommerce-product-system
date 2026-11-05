@@ -1,3 +1,5 @@
+import { useRealtimeRefresh } from '../realtime/useRealtimeRefresh';
+import { useCallback } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { Select, Spin } from 'antd';
 import { api, errorMessage, isCanceled } from '../api/client';
@@ -20,6 +22,13 @@ export function CategorySelect({
   placeholder = '选择分类',
   id,
 }: Props) {
+  const [revision, setRevision] = useState(0);
+  const refresh = useCallback(() => {
+    cache.current.clear();
+    setPage(1);
+    setRevision((value) => value + 1);
+  }, []);
+  useRealtimeRefresh(refresh, { categories: true });
   const [search, setSearch] = useState('');
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
@@ -68,7 +77,7 @@ export function CategorySelect({
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [page, query]);
+  }, [page, query, revision]);
 
   const selected = value
     ? (cache.current.get(value) ??
