@@ -188,3 +188,19 @@ POST /api/auth/register 的 role 可省略（默认 OPERATOR），或为 OPERATO
 ## Socket.IO 实时事件
 
 REST 路由、DTO、权限点及 Swagger 契约保持不变。Socket.IO 使用同端口 /socket.io/，JWT 通过 auth.token 提交，并复用 HTTP 签名/过期/tokenVersion 校验。product:changed、category:changed 只传资源 ID、操作和事件 ID；收到后重新请求原列表接口。session:invalidated 只发给目标用户。完整事件、错误码与连接规则见 [实时通知规格](realtime.md)。Swagger/OpenAPI 仅描述 HTTP。
+
+## 后台订单
+
+完整契约见 Swagger 的“订单”分组和 [订单规格](orders.md)。所有接口带 Bearer JWT；普通运营仅自己的订单、管理员全部。列表与 count 共用相同 where。
+
+| 方法 | 路径（前缀 /api） | 作用 |
+| --- | --- | --- |
+| POST | /orders | 带 UUID idempotencyKey 创建；1–50种不同商品，仅传商品ID/数量，金额服务端计算 |
+| GET | /orders | page=1/pageSize=10(≤100)、search、status、createdFrom/createdTo，返回list/total/page/pageSize |
+| GET | /orders/:id | 详情、成交快照与操作日志；不返回幂等键/请求指纹 |
+| PATCH | /orders/:id/confirm | 空对象；创建人/管理员手动确认待确认订单，不代表支付 |
+| PATCH | /orders/:id/ship | carrier、trackingNo；仅已确认订单 |
+| PATCH | /orders/:id/complete | 空对象；仅已发货订单 |
+| PATCH | /orders/:id/cancel | reason；仅待确认/已确认可取消并回补一次 |
+
+金额为两位小数字符串。错误：400校验、401认证、403权限、404不存在或越权、409库存/状态/幂等冲突、503副本只读。DTO严格白名单，不能传creatorId、role、status、单价或金额。商品PATCH提交stock必须同时提交读取时stockVersion，过期409；被订单引用的商品DELETE返回409。

@@ -1,3 +1,9 @@
+import type {
+  CreateOrderInput,
+  OrderDetail,
+  OrderPage,
+  OrderQuery,
+} from '../orders/order-types';
 import axios from 'axios';
 import { sessionToken, expireSession } from '../auth/session';
 import type {
@@ -69,6 +75,21 @@ export function errorMessage(error: unknown): string {
 export const isCanceled = axios.isCancel;
 
 export const api = {
+  orders: {
+    list: async (params: OrderQuery, signal?: AbortSignal) =>
+      (await http.get<OrderPage>('/orders', { params, signal })).data,
+    get: async (id: string, signal?: AbortSignal) =>
+      (await http.get<OrderDetail>('/orders/' + id, { signal })).data,
+    create: async (input: CreateOrderInput) =>
+      (await http.post<OrderDetail>('/orders', input)).data,
+    action: async (
+      id: string,
+      action: 'confirm' | 'ship' | 'complete' | 'cancel',
+      input: object,
+    ) =>
+      (await http.patch<OrderDetail>('/orders/' + id + '/' + action, input))
+        .data,
+  },
   adminUsers: {
     list: async (params: AdminUserQuery, signal?: AbortSignal) =>
       (await http.get<Page<User>>('/admin/users', { params, signal })).data,

@@ -2,6 +2,12 @@ import { applyDecorators, SetMetadata } from '@nestjs/common';
 import { ApiExtension } from '@nestjs/swagger';
 import type { Prisma, UserRole } from '../generated/prisma/client.js';
 export const PERMISSIONS = [
+  'order:read',
+  'order:create',
+  'order:confirm',
+  'order:ship',
+  'order:complete',
+  'order:cancel',
   'product:read',
   'product:create',
   'product:update',
@@ -17,6 +23,12 @@ export const PERMISSIONS = [
 export type Permission = (typeof PERMISSIONS)[number];
 export const ROLE_PERMISSIONS: Record<UserRole, readonly Permission[]> = {
   OPERATOR: [
+    'order:read',
+    'order:create',
+    'order:confirm',
+    'order:ship',
+    'order:complete',
+    'order:cancel',
     'product:read',
     'product:create',
     'product:update',

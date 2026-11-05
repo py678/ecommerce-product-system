@@ -1,3 +1,4 @@
+import { allowedOrigins } from './common/origins.js';
 import { ValidationPipe } from '@nestjs/common';
 import type { INestApplication } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
@@ -26,7 +27,7 @@ export function configureApp(app: INestApplication): void {
     }),
   );
   app.enableCors({
-    origin: process.env.FRONTEND_ORIGIN ?? 'http://localhost:5173',
+    origin: allowedOrigins(),
   });
   const config = new DocumentBuilder()
     .setTitle('商品管理后台 API')

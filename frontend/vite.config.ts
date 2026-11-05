@@ -25,17 +25,17 @@ export default defineConfig({
     strictPort: true,
     proxy: {
       '/socket.io': {
-        target: process.env.DEV_API_TARGET ?? 'http://127.0.0.1:3000',
+        target: process.env.DEV_API_TARGET ?? 'http://127.0.0.1:8088',
         ws: true,
         changeOrigin: true,
         rewriteWsOrigin: false,
       },
       '/uploads': {
-        target: process.env.DEV_API_TARGET ?? 'http://127.0.0.1:3000',
+        target: process.env.DEV_API_TARGET ?? 'http://127.0.0.1:8088',
         changeOrigin: true,
       },
       '/api': {
-        target: process.env.DEV_API_TARGET ?? 'http://127.0.0.1:3000',
+        target: process.env.DEV_API_TARGET ?? 'http://127.0.0.1:8088',
         changeOrigin: true,
       },
     },

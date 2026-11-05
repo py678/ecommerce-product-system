@@ -624,3 +624,42 @@ p {
     gap: 6px !important;
   }
 }
+
+.orders-workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  max-width: 1280px;
+  margin: 0 auto;
+}
+.orders-workspace .page-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.order-filters {
+  margin-bottom: 24px;
+}
+.order-filters label {
+  font-size: 13px;
+  color: #667085;
+}
+.order-total {
+  text-align: right;
+  font-weight: 600;
+  font-size: 20px;
+  margin: 24px 0;
+}
+.order-notice {
+  margin: 20px 0;
+}
+@media (max-width: 767px) {
+  .orders-workspace {
+    gap: 16px;
+  }
+  .orders-workspace .ant-card-body {
+    padding: 16px;
+  }
+}

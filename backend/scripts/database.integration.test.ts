@@ -9,10 +9,15 @@ import { PrismaClient } from '../dist/generated/prisma/client.js';
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString)
   throw new Error('DATABASE_URL is required for database verification.');
+const schema = new URL(connectionString).searchParams.get('schema') ?? 'public';
+if (!/^[a-z_][a-z0-9_]*$/.test(schema)) throw new Error('Invalid test schema');
 
 test('Prisma relations, Decimal values and CRUD work without leaving fixture records', async () => {
   const prisma = new PrismaClient({
-    adapter: new PrismaPg({ connectionString }),
+    adapter: new PrismaPg(
+      { connectionString, options: '-c search_path=' + schema },
+      { schema },
+    ),
   });
   const id = randomUUID();
   const rollback = new Error('ROLLBACK_VERIFICATION_FIXTURE');
@@ -63,7 +68,10 @@ test('Prisma relations, Decimal values and CRUD work without leaving fixture rec
 });
 
 test('PostgreSQL enforces uniqueness, foreign keys, nonnegative values and delete restrictions', async () => {
-  const client = new Client({ connectionString });
+  const client = new Client({
+    connectionString,
+    options: '-c search_path=' + schema,
+  });
   await client.connect();
   try {
     await client.query('BEGIN');

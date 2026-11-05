@@ -74,6 +74,29 @@ export class RealtimeService implements OnModuleDestroy {
       }
     }
   }
+  orderChanged(
+    id: string,
+    creatorId: string,
+    operation: 'created' | 'updated',
+  ) {
+    const payload = { eventId: randomUUID(), id, operation };
+    for (const [key, entry] of this.clients) {
+      if (entry.verified.expiresAt <= Date.now()) {
+        this.invalidate(key, 'expired');
+        continue;
+      }
+      if (
+        entry.verified.user.id === creatorId ||
+        entry.verified.user.role === 'ADMIN'
+      ) {
+        try {
+          entry.socket.emit('order:changed', payload);
+        } catch {
+          this.logger.warn('订单实时通知失败');
+        }
+      }
+    }
+  }
   revokeUser(id: string, reason: SessionReason) {
     for (const [key, entry] of this.clients)
       if (entry.verified.user.id === id) {

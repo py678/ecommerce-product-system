@@ -5,10 +5,16 @@ import { useRealtimeEvent } from './useRealtimeEvent';
 export function useRealtimeRefresh(
   refresh: () => void,
   {
+    orders = false,
     products = false,
     categories = false,
     paused = false,
-  }: { products?: boolean; categories?: boolean; paused?: boolean } = {},
+  }: {
+    orders?: boolean;
+    products?: boolean;
+    categories?: boolean;
+    paused?: boolean;
+  } = {},
 ) {
   const timer = useRef<ReturnType<typeof window.setTimeout> | undefined>(
     undefined,
@@ -28,6 +34,9 @@ export function useRealtimeRefresh(
       }
     }, 300);
   }, []);
+  useRealtimeEvent('order:changed', () => {
+    if (orders) schedule();
+  });
   useRealtimeEvent('product:changed', () => {
     if (products) schedule();
   });

@@ -17,11 +17,13 @@ import {
   ApiBadRequestResponse,
   ApiBearerAuth,
   ApiCreatedResponse,
+  ApiConflictResponse,
   ApiForbiddenResponse,
   ApiNoContentResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
+  ApiServiceUnavailableResponse,
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
@@ -51,6 +53,9 @@ export class ProductsController {
   constructor(private readonly products: ProductsService) {}
 
   @Post()
+  @ApiServiceUnavailableResponse({
+    description: '当前数据库是只读副本，请使用主服务操作',
+  })
   @ApiOperation({ summary: '创建商品，创建者自动设为当前用户' })
   @ApiCreatedResponse({ type: ProductResponseDto })
   @RequirePermissions('product:create')
@@ -78,6 +83,12 @@ export class ProductsController {
   }
 
   @Patch(':id')
+  @ApiConflictResponse({
+    description: '库存版本过期，请重新读取商品后提交 stock 和 stockVersion',
+  })
+  @ApiServiceUnavailableResponse({
+    description: '当前数据库是只读副本，请使用主服务操作',
+  })
   @ApiOperation({ summary: '编辑商品；管理员可编辑全部，其余仅自己' })
   @ApiOkResponse({ type: ProductResponseDto })
   @ApiForbiddenResponse({ description: '没有执行此操作的权限' })
@@ -92,6 +103,10 @@ export class ProductsController {
   }
 
   @Delete(':id')
+  @ApiConflictResponse({ description: '商品已被订单引用，不能删除' })
+  @ApiServiceUnavailableResponse({
+    description: '当前数据库是只读副本，请使用主服务操作',
+  })
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: '删除商品；管理员可删除全部，其余仅自己' })
   @ApiNoContentResponse()

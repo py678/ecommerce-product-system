@@ -157,6 +157,7 @@ describe.sequential('Catalog HTTP API (real PostgreSQL)', () => {
       .send({
         price: '9.9',
         stock: 5,
+        stockVersion: 0,
         categoryId: otherCategoryId,
         description: 'Updated description',
       })

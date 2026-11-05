@@ -13,6 +13,19 @@ import { useAuth } from './auth/useAuth';
 import { AdminLayout } from './layouts/AdminLayout';
 import { LoadingScreen } from './components/PageFeedback';
 
+const OrdersPage = lazy(() =>
+  import('./pages/OrdersPage').then((m) => ({ default: m.OrdersPage })),
+);
+const OrderCreatePage = lazy(() =>
+  import('./pages/OrderCreatePage').then((m) => ({
+    default: m.OrderCreatePage,
+  })),
+);
+const OrderDetailPage = lazy(() =>
+  import('./pages/OrderDetailPage').then((m) => ({
+    default: m.OrderDetailPage,
+  })),
+);
 const AuthPage = lazy(() =>
   import('./pages/AuthPage').then((module) => ({ default: module.AuthPage })),
 );
@@ -97,6 +110,13 @@ export default function App() {
             </Route>
             <Route element={<RequirePermission permission="user:read" />}>
               <Route path="/admin/users" element={<AdminUsersPage />} />
+            </Route>
+            <Route element={<RequirePermission permission="order:read" />}>
+              <Route path="/orders" element={<OrdersPage />} />
+              <Route path="/orders/:id" element={<OrderDetailPage />} />
+            </Route>
+            <Route element={<RequirePermission permission="order:create" />}>
+              <Route path="/orders/new" element={<OrderCreatePage />} />
             </Route>
             <Route path="/profile" element={<ProfilePage />} />
           </Route>

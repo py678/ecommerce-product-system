@@ -16,6 +16,8 @@
       interval: 2s
       retries: 20
   tester:
+    volumes:
+      - ../scripts:/app/scripts:ro
     build:
       context: ..
       target: migrate

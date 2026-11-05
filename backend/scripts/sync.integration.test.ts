@@ -187,6 +187,7 @@ test('two independent PostgreSQL databases converge without losing pending chang
       for (const name of [
         '20261104055425_user_roles_and_audit',
         '20261104055441_user_roles_and_audit',
+        '20261105055343_order_management',
       ])
         await db.query(
           await readFile(
@@ -482,7 +483,7 @@ test('two independent PostgreSQL databases converge without losing pending chang
     await t.test(
       'TRUNCATE and primary key changes are rejected instead of bypassing synchronization',
       async () => {
-        await assert.rejects(a.query('TRUNCATE products'), /TRUNCATE/);
+        await assert.rejects(a.query('TRUNCATE products CASCADE'), /TRUNCATE/);
         await assert.rejects(
           a.query('UPDATE users SET id=$2 WHERE id=$1', [user, randomUUID()]),
           /primary key/,

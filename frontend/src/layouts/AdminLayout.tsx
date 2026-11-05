@@ -18,13 +18,15 @@ export function AdminLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
-  const section = location.pathname.startsWith('/admin/users')
-    ? '/admin/users'
-    : location.pathname.startsWith('/profile')
-      ? '/profile'
-      : location.pathname.startsWith('/categories')
-        ? '/categories'
-        : '/products';
+  const section = location.pathname.startsWith('/orders')
+    ? '/orders'
+    : location.pathname.startsWith('/admin/users')
+      ? '/admin/users'
+      : location.pathname.startsWith('/profile')
+        ? '/profile'
+        : location.pathname.startsWith('/categories')
+          ? '/categories'
+          : '/products';
 
   return (
     <Layout className="admin-layout">
@@ -54,6 +56,15 @@ export function AdminLayout() {
               setCollapsed(true);
           }}
           items={[
+            ...(can(user, 'order:read')
+              ? [
+                  {
+                    key: '/orders',
+                    icon: <AppstoreOutlined />,
+                    label: '订单管理',
+                  },
+                ]
+              : []),
             ...(can(user, 'product:read')
               ? [
                   {
@@ -100,13 +111,15 @@ export function AdminLayout() {
             />
             <span className="breadcrumb">
               工作台 <span>/</span>{' '}
-              {section === '/admin/users'
-                ? '账号管理'
-                : section === '/profile'
-                  ? '个人中心'
-                  : section === '/products'
-                    ? '商品管理'
-                    : '分类管理'}
+              {section === '/orders'
+                ? '订单管理'
+                : section === '/admin/users'
+                  ? '账号管理'
+                  : section === '/profile'
+                    ? '个人中心'
+                    : section === '/products'
+                      ? '商品管理'
+                      : '分类管理'}
             </span>
           </Space>
           <Space size={12}>

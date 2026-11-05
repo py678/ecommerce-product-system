@@ -102,3 +102,24 @@ UserRole 枚举仅 OPERATOR、ADMIN；users.role 非空且默认 OPERATOR。2026
 role_audits 保存 actor_id、target_id、from_role、to_role、created_at，不存密码/令牌，标识不设置级联外键，保留历史操作依据。审计只在发起操作的库落地，用户角色和版本通过现有同步桥传播。
 
 本次 SQL 已经用户审查确认；仅在隔离 schema 验证空库部署与已有账号回填，尚未部署本机 public 或 Docker 业务库。分类本来就是全局独立表，没有按用户的唯一键或归属字段，升级不合并、不删除任何分类。
+
+## 订单与库存扩展
+
+迁移：20261105055343_order_management；保留已有数据，stock_version初始化0。
+
+```mermaid
+erDiagram
+  users ||--o{ orders : creates
+  orders ||--|{ order_items : contains
+  products ||--o{ order_items : snapshot
+  orders ||--|{ order_logs : records
+```
+
+- orders：UUID主键、唯一order_no、创建者外键RESTRICT、(creator_id,idempotency_key)唯一、SHA256请求指纹、客户/物流信息、状态与时间、Decimal(18,2)总额。索引(creator_id,created_at)/(status,created_at)/created_at。
+- order_items：订单CASCADE、商品RESTRICT；(order_id,product_id)唯一。保存名称、封面、Decimal(12,2)单价快照、1–9999数量和Decimal(18,2)小计；CHECK验证小计=单价×数量。
+- order_logs：订单外键、操作人ID/名称快照、动作、前后状态与原因。数据库不关联操作人以保留历史快照。
+- products.stock_version：库存变化由触发器递增；同步重放保留源版本，不二次递增。
+- _commerce_config：内部单例id=1，STANDALONE/PRIMARY/REPLICA；不提供HTTP接口。commerce_write_guard阻止副本直写及主库反向覆盖。
+- _sync_events.transaction_id：pg_current_xact_id()::text；按源事务整体重放及确认，失败整组回滚，订单三表也记录同步事件。
+
+双库商品与订单仅主库写入，副本供查询；users/categories继续双向，禁止用旧整行双向产品同步覆盖库存。默认STANDALONE仅用于独立环境；实际双库必须配置互补角色。

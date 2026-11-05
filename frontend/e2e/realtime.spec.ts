@@ -133,11 +133,12 @@ test('two authenticated windows merge product events, preserve queries, recover 
     const burstStarted = Date.now();
     // HTTP writes exercise the real Nest gateway, proxy and client hook.
     const updates = await Promise.all(
-      ids
-        .slice(0, 3)
-        .map((id) =>
-          request.patch('/api/products/' + id, { headers, data: { stock: 4 } }),
-        ),
+      ids.slice(0, 3).map((id) =>
+        request.patch('/api/products/' + id, {
+          headers,
+          data: { stock: 4, stockVersion: 0 },
+        }),
+      ),
     );
     updates.forEach((response) => expect(response.status()).toBe(200));
     await expect.poll(() => requests.length).toBe(1);
@@ -155,7 +156,7 @@ test('two authenticated windows merge product events, preserve queries, recover 
       .fill('Unsaved local draft');
     const remote = await request.patch('/api/products/' + ids[10], {
       headers,
-      data: { stock: 5 },
+      data: { stock: 5, stockVersion: 0 },
     });
     expect(remote.status()).toBe(200);
     await expect(a.getByText(/数据可能已变化/)).toBeVisible();
@@ -182,7 +183,7 @@ test('two authenticated windows merge product events, preserve queries, recover 
     );
     const forbidden = await request.patch('/api/products/' + ids[0], {
       headers: { Authorization: 'Bearer ' + operator.accessToken },
-      data: { stock: 5 },
+      data: { stock: 5, stockVersion: 0 },
     });
     expect(forbidden.status()).toBe(404);
     const changed = await request.patch('/api/users/me/password', {

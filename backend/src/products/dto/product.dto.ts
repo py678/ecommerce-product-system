@@ -69,7 +69,20 @@ export class CreateProductDto {
 
 export class UpdateProductDto extends PartialType(CreateProductDto, {
   skipNullProperties: false,
-}) {}
+}) {
+  @ApiPropertyOptional({
+    minimum: 0,
+    description: '提交 stock 时必填；使用读取时的版本，过期返回409',
+  })
+  @ValidateIf(
+    (object: UpdateProductDto, value) =>
+      object.stock !== undefined || value !== undefined,
+  )
+  @IsInt()
+  @Min(0)
+  @Max(2147483647)
+  stockVersion?: number;
+}
 
 export { ProductQueryDto } from './product-query.dto.js';
 
@@ -117,6 +130,9 @@ export class ProductResponseDto {
 
   @ApiProperty()
   stock: number;
+
+  @ApiProperty({ minimum: 0, description: '库存乐观并发版本' })
+  stockVersion: number;
 
   @ApiProperty({ type: String, format: 'date-time' })
   createdAt: Date;

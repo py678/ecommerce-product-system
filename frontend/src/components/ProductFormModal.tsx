@@ -33,7 +33,11 @@ export function ProductFormModal({
     if (uploading) return;
     setSaving(true);
     try {
-      if (product) await api.products.update(product.id, values);
+      if (product)
+        await api.products.update(product.id, {
+          ...values,
+          stockVersion: product.stockVersion,
+        });
       else await api.products.create(values);
       void message.success(product ? '商品已更新' : '商品已创建');
       onSaved();

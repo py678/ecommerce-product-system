@@ -73,6 +73,7 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
         emit('realtime:connected', undefined);
       }
     });
+    socket.on('order:changed', (payload) => emit('order:changed', payload));
     socket.on('product:changed', (payload) => emit('product:changed', payload));
     socket.on('category:changed', (payload) =>
       emit('category:changed', payload),

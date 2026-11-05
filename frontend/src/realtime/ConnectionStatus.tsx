@@ -12,7 +12,7 @@ export function ConnectionStatus() {
       title={
         status === 'disconnected'
           ? '实时连接中断，可手动刷新；恢复后自动获取最新数据'
-          : '商品与分类实时通知'
+          : '商品、分类与自己的订单实时通知'
       }
     >
       <span

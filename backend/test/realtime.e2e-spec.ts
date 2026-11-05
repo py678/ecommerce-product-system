@@ -42,6 +42,9 @@ describe.sequential('Realtime authenticated transport', () => {
     category: { id: randomUUID(), name: 'Fixture' },
   };
   const db = {
+    commerceConfig: {
+      findUnique: vi.fn(async () => ({ writeRole: 'STANDALONE' })),
+    },
     user: {
       findUnique: vi.fn(async ({ where }: { where: { id: string } }) =>
         where.id === user.id
@@ -157,14 +160,20 @@ describe.sequential('Realtime authenticated transport', () => {
     const received = event<Record<string, unknown>>(b, 'product:changed');
     await app
       .get(ProductsService)
-      .update(product.id, { id: user.id, role: 'OPERATOR' }, { stock: 11 });
+      .update(
+        product.id,
+        { id: user.id, role: 'OPERATOR' },
+        { stock: 11, stockVersion: 0 },
+      );
     expect(await received).toEqual({
       id: product.id,
       operation: 'updated',
       eventId: expect.any(String),
     });
     expect(db.product.update).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: product.id, userId: user.id } }),
+      expect.objectContaining({
+        where: { id: product.id, userId: user.id, stockVersion: 0 },
+      }),
     );
   });
   it('does not broadcast failed writes', async () => {
@@ -178,7 +187,11 @@ describe.sequential('Realtime authenticated transport', () => {
     await expect(
       app
         .get(ProductsService)
-        .update(product.id, { id: user.id, role: 'OPERATOR' }, { stock: 11 }),
+        .update(
+          product.id,
+          { id: user.id, role: 'OPERATOR' },
+          { stock: 11, stockVersion: 0 },
+        ),
     ).rejects.toThrow('write failed');
     await new Promise((resolve) => setTimeout(resolve, 60));
     expect(listener).not.toHaveBeenCalled();
@@ -190,7 +203,11 @@ describe.sequential('Realtime authenticated transport', () => {
     expect(
       await app
         .get(ProductsService)
-        .update(product.id, { id: user.id, role: 'OPERATOR' }, { stock: 11 }),
+        .update(
+          product.id,
+          { id: user.id, role: 'OPERATOR' },
+          { stock: 11, stockVersion: 0 },
+        ),
     ).toMatchObject({ stock: 11 });
   });
   it('notifies and disconnects only the revoked user and rejects the old JWT', async () => {

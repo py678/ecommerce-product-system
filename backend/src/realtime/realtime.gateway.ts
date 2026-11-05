@@ -1,3 +1,4 @@
+import { allowedOrigins } from '../common/origins.js';
 import { UnauthorizedException } from '@nestjs/common';
 import {
   OnGatewayConnection,
@@ -8,10 +9,7 @@ import type { Server, Socket } from 'socket.io';
 import { AccessTokenService } from '../auth/access-token.service.js';
 import { RealtimeService } from './realtime.service.js';
 function originAllowed(origin: string | undefined) {
-  return (
-    !origin ||
-    origin === (process.env.FRONTEND_ORIGIN ?? 'http://localhost:5173')
-  );
+  return !origin || allowedOrigins().includes(origin);
 }
 @WebSocketGateway({
   path: '/socket.io/',

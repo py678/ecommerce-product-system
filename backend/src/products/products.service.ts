@@ -1,9 +1,11 @@
+import { CommerceAuthorityService } from '../commerce/commerce.module.js';
 import {
   RealtimeService,
   notifyResourceChange,
 } from '../realtime/realtime.service.js';
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -38,12 +40,14 @@ export class ProductsService {
   constructor(
     private readonly db: DatabaseService,
     private readonly realtime: RealtimeService,
+    private readonly authority: CommerceAuthorityService,
   ) {}
 
   async create(
     userId: string,
     dto: CreateProductDto,
   ): Promise<ProductResponseDto> {
+    await this.authority.requireWriter();
     await this.requireCategory(dto.categoryId);
     try {
       const response = toResponse(
@@ -119,7 +123,14 @@ export class ProductsService {
     actor: Actor,
     dto: UpdateProductDto,
   ): Promise<ProductResponseDto> {
-    if (Object.values(dto).every((value) => value === undefined))
+    await this.authority.requireWriter();
+    if (dto.stock !== undefined && dto.stockVersion === undefined)
+      throw new BadRequestException('修改库存必须提供 stockVersion');
+    if (
+      Object.entries(dto)
+        .filter(([key]) => key !== 'stockVersion')
+        .every(([, value]) => value === undefined)
+    )
       throw new BadRequestException('请至少提供一个可更新字段');
     await this.findInScope(id, productScope(actor));
     if (dto.categoryId !== undefined)
@@ -128,7 +139,13 @@ export class ProductsService {
       // Include ownership in the write condition as well as the human-readable permission check.
       const response = toResponse(
         await this.db.product.update({
-          where: { ...productScope(actor), id },
+          where: {
+            ...productScope(actor),
+            id,
+            ...(dto.stock !== undefined
+              ? { stockVersion: dto.stockVersion }
+              : {}),
+          },
           data: {
             name: dto.name,
             description: dto.description,
@@ -143,16 +160,30 @@ export class ProductsService {
       notifyResourceChange(this.realtime, 'product', response.id, 'updated');
       return response;
     } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025' &&
+        dto.stock !== undefined
+      ) {
+        await this.findInScope(id, productScope(actor));
+        throw new ConflictException('库存已变化，请重新打开商品后编辑');
+      }
       return this.handleWriteError(error);
     }
   }
 
   async remove(id: string, actor: Actor): Promise<void> {
+    await this.authority.requireWriter();
     await this.findInScope(id, productScope(actor));
     try {
       await this.db.product.delete({ where: { ...productScope(actor), id } });
       notifyResourceChange(this.realtime, 'product', id, 'deleted');
     } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2003'
+      )
+        throw new ConflictException('商品已被订单引用，不能删除');
       this.handleWriteError(error);
     }
   }

@@ -104,3 +104,28 @@ Linux 隔离构建、空库初始化迁移、数据库容器重建后保留迁�
 ## Socket.IO 升级与验证
 
 本次无需新增迁移。按原 Compose 命令加 --build 重建前后端；启用同步的环境保留 sync 组合配置。Nginx 同端口代理 /socket.io/，同时支持 polling 与 WebSocket，升级头、HTTP/1.1 和 75 秒超时已配置，不开放额外端口。FRONTEND_ORIGIN 必须与页面 Origin 完全一致，默认入口使用 http://localhost:8088。若另有外层网关，也需要保留 /socket.io/、Upgrade/Connection 和合适的超时。生产使用 HTTPS/WSS。详细启动及双窗口验收见 [实时通知规格](realtime.md#8-启动与双窗口手动验收)。单实例无需 Redis，扩容时再增加 adapter。
+
+## 订单版本：双库维护升级
+
+商品与订单改为Docker PRIMARY / 本机 REPLICA；用户/分类仍双向。旧桥必须升级，不能只重建前端。已有业务数据、账号密码与角色均保留。
+
+1. 先构建镜像并完成隔离测试；进入维护窗口，停止前后端及任何本机业务写入。备份两库完整pg_dump，存入被忽略的备份目录，禁止提交。
+2. 旧同步桥保持运行直到两边_sync_events的delivered_at IS NULL均为0，核对商品一致后停止桥。不得直接标记丢弃待同步事件。
+3. 两边分别执行prisma migrate deploy（禁止reset）。迁移默认STANDALONE，此时继续保持维护。
+4. 使用同步服务环境运行下面的检查与激活；脚本锁定两库业务表、验证空队列与六张表内容完全一致，然后设置互补角色。如果失败，保持维护，排查后重试；不要恢复成双主。
+5. 重建并启动后端、前端和同步桥，确认健康、两库迁移状态与角色正确。访问8088订单页验收。
+
+```powershell
+docker compose -f docker-compose.yml -f docker-compose.sync.yml --profile sync build migrate backend frontend db-sync
+# 完成备份与停止业务写入、排空旧队列后：
+docker compose -f docker-compose.yml -f docker-compose.sync.yml --profile sync stop db-sync
+docker compose run --rm migrate
+# 本机库另在backend目录执行 npm.cmd run db:deploy
+docker compose -f docker-compose.yml -f docker-compose.sync.yml --profile sync run --rm --no-deps db-sync node scripts/commerce-cutover.ts
+docker compose -f docker-compose.yml -f docker-compose.sync.yml --profile sync run --rm --no-deps db-sync node scripts/commerce-cutover.ts --activate
+docker compose -f docker-compose.yml -f docker-compose.sync.yml --profile sync up -d --build
+```
+
+以后日常启动继续使用最后一条命令，不重复角色切换。不使用本机副本后端修改商品/录单；5173默认代理8088主服务。独立开发/测试才使用STANDALONE和自己的数据库。图片仍位于既有共享uploads目录，数据库只同步URL。
+
+一致性检查会将两个会话时区统一为UTC再比较TIMESTAMPTZ，避免本机Asia/Shanghai与容器UTC的显示差异误报。当前部署已按上述流程完成角色激活；后续日常启动不要重复执行初始化或切换脚本。

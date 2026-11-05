@@ -158,7 +158,9 @@ describe.sequential('Image upload and product cover HTTP API', () => {
         .patch(`/api/products/${created.body.id}`)
         .set('Authorization', `Bearer ${token}`)
         .send(body);
-    expect((await patch({ stock: 8 }).expect(200)).body.coverImage).toBe(cover);
+    expect(
+      (await patch({ stock: 8, stockVersion: 0 }).expect(200)).body.coverImage,
+    ).toBe(cover);
     expect(
       (
         await patch({ coverImage: 'https://example.com/cover.webp' }).expect(

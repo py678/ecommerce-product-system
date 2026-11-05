@@ -5,6 +5,7 @@ export interface ResourceEvent {
   operation: 'created' | 'updated' | 'deleted';
 }
 export interface RealtimeEvents {
+  'order:changed': ResourceEvent;
   'product:changed': ResourceEvent;
   'category:changed': ResourceEvent;
   'realtime:connected': undefined;

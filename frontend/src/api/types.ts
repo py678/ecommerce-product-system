@@ -1,5 +1,11 @@
 export type UserRole = 'OPERATOR' | 'ADMIN';
 export type Permission =
+  | 'order:read'
+  | 'order:create'
+  | 'order:confirm'
+  | 'order:ship'
+  | 'order:complete'
+  | 'order:cancel'
   | 'product:read'
   | 'product:create'
   | 'product:update'
@@ -49,6 +55,7 @@ export interface Product {
   coverImage: string | null;
   price: string;
   stock: number;
+  stockVersion: number;
   categoryId: string;
   userId: string;
   category: { id: string; name: string };
@@ -63,6 +70,7 @@ export interface ProductInput {
   coverImage?: string;
   price: string;
   stock: number;
+  stockVersion?: number;
   categoryId: string;
 }
 

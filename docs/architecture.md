@@ -65,3 +65,11 @@ UsersModule 仅允许基于 JWT 身份查看资料、修改邮箱与独立改密
 ## 实时通知模块
 
 RealtimeModule 导入 AuthModule，共享 AccessTokenService，与 HTTP Guard 使用相同 JWT 和数据库 tokenVersion 验证。商品、分类及用户安全服务导入 RealtimeModule，仅在写入/事务提交后通知；AuthModule 不反向依赖 RealtimeModule，避免循环依赖。网关无业务写 handler，连接注册表只包含已认证连接；过期定时与 30 秒版本检查负责失效清理。前端 AuthProvider 内集中挂载 RealtimeProvider，通过订阅 hook 和 300ms 刷新队列重新调用 REST。无需新表；数据库直改、多实例与可靠投递边界见 [实时通知规格](realtime.md)。
+
+## 订单模块与双库一致性
+
+OrdersModule独立组织Controller/DTO/Service；复用JWT、权限Guard、DatabaseModule和RealtimeModule。CommerceModule检查写入角色，SQL触发器提供副本写保护。OrdersService使用事务幂等锁、按UUID排序的商品行锁、带归属的订单行锁及写条件，订单/明细/日志与库存原子提交。商品库存乐观版本阻止旧编辑表单覆盖已扣库存。
+
+订单事件只投递创建人/管理员，商品库存事件仍共享广播；前端列表和详情复用300ms合并、重连补拉，保留URL查询。订单无物理删除或自由状态编辑接口。
+
+同步桥在PRIMARY/REPLICA部署按transaction_id复制完整源事务；目标提交后才确认源队列，失败停止本方向后续组，重放使用原事件版本。一次102事件的大订单不会受旧100行批量上限拆分。用户/分类仍双向；商品与订单强制Docker主写。STANDALONE保留隔离开发兼容，不用于生产双主库存。

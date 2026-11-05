@@ -57,3 +57,27 @@ order:changed 仅通知创建人和管理员，载荷只含事件ID、订单ID�
 **独立双库集成测试**：两套一次性PostgreSQL初始化为PRIMARY/REPLICA，创建→同步→取消→同步均核对两库订单/明细/日志及库存一致；重复同步不二次扣减/回补；目标故障整事务回滚；恢复后重试一致；大事务超过100事件不拆分；副本直接写入及逆向覆盖主库库存均拒绝。
 
 浏览器覆盖录单验证、成功跳转、列表/详情状态操作、运营范围与管理员权限、实时库存和订单通知、错误反馈与网络重试。保留既有用户、商品、分类和角色业务数据。
+
+## 实施文件与验证命令
+
+后端新增 src/orders/（DTO/Controller/Service/Module）、src/commerce/（写入角色检查）、common/origins.ts（统一HTTP/WebSocket来源）；扩展商品库存版本、权限点和订单私有通知。前端新增三个订单页面及 orders/order-types.ts，扩展Axios、菜单路由和实时订阅。同步桥增加整事务复制；Prisma迁移保留原表数据及同步触发器。
+
+在仓库根目录执行：
+
+```powershell
+npm.cmd --prefix backend run build
+node backend/scripts/verify-orders.ts --all --browser
+docker compose -p silk-orders-test -f backend/test/docker-compose.sync-test.yml -f backend/test/docker-compose.orders-test.yml up --build --abort-on-container-exit --exit-code-from tester
+# 以下仅清理一次性测试容器与卷，不作用于silk-shop业务项目
+docker compose -p silk-orders-test -f backend/test/docker-compose.sync-test.yml -f backend/test/docker-compose.orders-test.yml down -v
+```
+
+浏览器验收：打开两个浏览器窗口登录同一运营账号；窗口A创建订单，窗口B订单列表自动刷新且保留筛选分页。可另用其他运营账号验证订单不可见，用管理员验证全部可见。创建立即扣库存；待确认点击“确认订单”，再填写物流发货；发货后没有取消按钮。未发货取消只回补一次。
+
+## 本次验证记录（2026-11-05）
+
+- 后端：245项Vitest测试、2项PostgreSQL约束/Prisma测试通过；默认npm test与db:verify改为随机命名空间运行，避免在本机只读业务副本写测试数据。迁移在空命名空间应用成功，migrate diff无漂移；旧同步回归含存量行迁移验证。
+- 前端：23项Edge浏览器测试通过，含录单校验、后端已提交但响应丢失后的同键重试、双窗口自动更新、URL保留、取消/发货/完成操作及现有功能回归。
+- 双库：旧同步11项测试、订单/库存4项集成测试通过，覆盖102事件事务、故障整组回滚与恢复、重复重放、逆向覆盖拒绝、副本拒写及不同时区的一致性检查。
+- 部署：迁移前保存两套完整pg_dump并验证归档列表，备份在忽略目录tools/installers/sync-backups/orders-2026-11-05T06-53-22.984Z。旧队列排空后两库升级，Docker PRIMARY / 本机 REPLICA已激活；切换核对原有5账号、2分类、4商品一致。
+- 实际8088：管理员/运营两个窗口连接并自动显示新订单与状态，商品页库存自动刷新；主库创建/取消后本机副本库存一致；幂等重试无重复扣减，已发货取消409，重复取消409。所有本次验收临时订单/明细/日志/商品/分类均已从两库清理，已有业务数据保留。

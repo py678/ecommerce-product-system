@@ -118,7 +118,7 @@ describe.sequential('RBAC and resource scope HTTP API', () => {
     for (const id of [productId, randomUUID()])
       for (const method of ['patch', 'delete'] as const) {
         const r = await api(method, '/api/products/' + id, 'other')
-          .send(method === 'patch' ? { stock: 2 } : undefined)
+          .send(method === 'patch' ? { stock: 2, stockVersion: 0 } : undefined)
           .expect(404);
         expect(r.body.message).toBe('商品不存在');
       }
@@ -169,10 +169,10 @@ describe.sequential('RBAC and resource scope HTTP API', () => {
   );
   it('allows own writes and administrator writes without transferring ownership', async () => {
     await api('patch', '/api/products/' + productId)
-      .send({ stock: 6 })
+      .send({ stock: 6, stockVersion: 0 })
       .expect(200);
     const r = await api('patch', '/api/products/' + productId, 'admin')
-      .send({ stock: 7 })
+      .send({ stock: 7, stockVersion: 1 })
       .expect(200);
     expect(r.body.userId).toBe(users.operator.id);
     await api('get', '/api/products/' + productId, 'admin').expect(200);
