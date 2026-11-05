@@ -643,8 +643,15 @@ p {
   margin-bottom: 24px;
 }
 .order-filters label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   font-size: 13px;
   color: #667085;
+}
+.order-filters input[type='date'] {
+  height: 32px;
+  box-sizing: border-box;
 }
 .order-total {
   text-align: right;

@@ -85,7 +85,7 @@ export function OrdersPage() {
         )}
       </div>
       <Card>
-        <Space wrap className="order-filters">
+        <Space wrap align="end" className="order-filters">
           <Input.Search
             key={params.get('search')}
             aria-label="搜索订单"
