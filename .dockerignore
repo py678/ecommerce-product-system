@@ -1,0 +1,17 @@
+**/node_modules
+**/dist
+**/.turbo
+**/coverage
+**/test-results
+**/playwright-report
+**/*.tsbuildinfo
+**/*.log
+**/.env
+**/.env.*
+!**/.env.example
+backend/src/generated
+backend/uploads
+.git
+.agents
+.codex
+tools

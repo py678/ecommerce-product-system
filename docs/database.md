@@ -66,11 +66,13 @@ erDiagram
 在 backend 目录操作。已有数据库时，复制 `.env.example` 为 `.env`，填写实际 `DATABASE_URL`，然后：
 
 ```powershell
+cd ..
 npm.cmd ci
+npm.cmd run db:verify
+cd backend
 npm.cmd run db:generate
 npm.cmd run db:validate
 npm.cmd run db:deploy
-npm.cmd run db:verify
 npm.cmd run start:dev
 ```
 

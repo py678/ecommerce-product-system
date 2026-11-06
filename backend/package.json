@@ -7,7 +7,8 @@
   "license": "UNLICENSED",
   "type": "module",
   "scripts": {
-    "build": "prisma generate && nest build",
+    "build": "nest build",
+    "dev": "prisma generate && nest start --watch",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\" \"scripts/**/*.ts\" prisma.config.ts eslint.config.mjs",
     "format:check": "prettier --check \"src/**/*.ts\" \"test/**/*.ts\" \"scripts/**/*.ts\" prisma.config.ts eslint.config.mjs",
     "db:setup": "node scripts/setup-database.ts",
@@ -16,20 +17,20 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:status": "prisma migrate status",
-    "db:verify": "npm run build && node scripts/verify-orders.ts --database-only",
+    "db:verify": "node scripts/verify-orders.ts --database-only",
     "start": "nest start",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main.js",
     "lint": "eslint src/ test/ scripts/ prisma.config.ts",
-    "test": "npm run build && node scripts/verify-orders.ts --all",
+    "test": "node scripts/verify-orders.ts --all",
     "test:watch": "vitest",
     "test:cov": "vitest run --coverage",
     "test:debug": "vitest --inspect-brk --no-file-parallelism",
-    "test:e2e": "npm run build && node scripts/verify-orders.ts --all",
+    "test:e2e": "node scripts/verify-orders.ts --all",
     "admin:bootstrap": "node dist/admin/bootstrap-admin.js",
-    "test:realtime": "npm run build && node scripts/verify-realtime.ts",
-    "test:orders": "npm run build && node scripts/verify-orders.ts --all --browser"
+    "test:realtime": "node scripts/verify-realtime.ts",
+    "test:orders": "node scripts/verify-orders.ts --all --browser"
   },
   "dependencies": {
     "@nestjs/common": "^12.0.1",
@@ -72,9 +73,5 @@
     "typescript-eslint": "8.72.1",
     "vite": "^8.0.0",
     "vitest": "^4.1.2"
-  },
-  "allowScripts": {
-    "prisma@7.10.1": true,
-    "@prisma/engines@7.10.1": true
   }
 }

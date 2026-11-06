@@ -93,13 +93,12 @@ docker compose -f docker-compose.yml -f docker-compose.sync.yml --profile sync u
 
 ```powershell
 # 终端一
-cd D:\考核项目\backend
+cd D:\考核项目
 npm.cmd ci
-npm.cmd run start:dev
+npm.cmd run dev --workspace backend
 # 终端二
-cd D:\考核项目\frontend
-npm.cmd ci
-npm.cmd run dev
+cd D:\考核项目
+npm.cmd run dev --workspace frontend
 ```
 
 开发页面 http://localhost:5173，后端 Swagger http://localhost:3000/docs。首次安装后如缺生成 Prisma Client，先在 backend 执行 npm.cmd run db:generate。
@@ -118,8 +117,8 @@ npm.cmd run dev
 ## 9. 自动验证与文件职责
 
 - 后端先红：未实现时运行 realtime.e2e-spec.ts 因缺少 realtime.module.js 失败；实现后使用真实随机端口 Socket、真实 JWT 与模拟持久层验收，不连接业务数据库。
-- 后端单独验证：backend 下先 npm.cmd run build，再 node node_modules/vitest/vitest.mjs run --config vitest.config.e2e.ts test/realtime.e2e-spec.ts。
-- 完整实时专项：安装前后端依赖后，在 backend 执行 npm.cmd run test:realtime。要求本机 PostgreSQL 可用、当前开发账号可创建 schema，并安装 Edge。脚本自动创建随机隔离 schema、部署既有迁移、运行后端实时测试和双窗口浏览器测试，最后只清理自身 schema；不清空业务库。浏览器实时测试在隔离库预置账号并签发测试凭证，不消耗真实注册/登录接口限流额度。
+- 后端与浏览器隔离验证：在根目录执行 npm.cmd run test:realtime，由任务图先构建两端，不依赖固定 node_modules 路径。
+- 完整实时专项：根目录 npm.cmd ci 后执行 npm.cmd run test:realtime。要求本机 PostgreSQL 可用、当前开发账号可创建 schema，并安装 Edge。脚本自动创建随机隔离 schema、部署既有迁移、运行后端实时测试和双窗口浏览器测试，最后只清理自身 schema；不清空业务库。浏览器实时测试在隔离库预置账号并签发测试凭证，不消耗真实注册/登录接口限流额度。
 - 验证范围包括 JWT、跨用户广播、归属条件保留、失败写入/失败推送、周期撤销、到期、安全通知、连续事件合并、查询参数保留、编辑保护和断线重连。
 
 | 文件 | 职责 |

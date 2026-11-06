@@ -30,6 +30,13 @@ AGENTS.md     本文件
 
 新增模块/文件时保持目录结构化，避免在根目录堆积散乱文件。
 
+## Workspace 与任务编排
+
+- 使用 npm workspaces（backend、frontend）与 Turborepo；根目录统一执行 `npm ci`，只维护根目录 package-lock.json，不在子目录新增锁文件。
+- 根目录 `npm run build`、`npm run lint`、`npm run format:check` 为统一检查入口；`npm test` 为隔离后端验证，`npm run test:orders` 包含隔离浏览器回归。任务图负责构建先后，直接调用子目录测试脚本前须准备构建。
+- Prisma Client 生成不缓存且先于后端构建；数据库、双库、浏览器测试和格式写入禁用缓存。迁移、管理员引导、同步和 Docker 部署须显式执行，不挂到默认 build/dev。
+- 仅启用本地缓存，`.turbo`、生成客户端与构建产物均不提交。调整构建输入、环境变量或输出路径时配套更新 turbo.json。详情见 docs/tooling.md。
+
 ## 版本控制（硬性要求）
 
 - 每个开发日均需提交并推送；无变更时不创建空提交。

@@ -65,8 +65,7 @@ order:changed 仅通知创建人和管理员，载荷只含事件ID、订单ID�
 在仓库根目录执行：
 
 ```powershell
-npm.cmd --prefix backend run build
-node backend/scripts/verify-orders.ts --all --browser
+npm.cmd run test:orders
 docker compose -p silk-orders-test -f backend/test/docker-compose.sync-test.yml -f backend/test/docker-compose.orders-test.yml up --build --abort-on-container-exit --exit-code-from tester
 # 以下仅清理一次性测试容器与卷，不作用于silk-shop业务项目
 docker compose -p silk-orders-test -f backend/test/docker-compose.sync-test.yml -f backend/test/docker-compose.orders-test.yml down -v

@@ -3,7 +3,8 @@ services:
   db-sync:
     profiles: [sync]
     build:
-      context: ./backend
+      context: .
+      dockerfile: backend/Dockerfile
       target: migrate
     env_file: .env.sync.local
     environment:

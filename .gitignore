@@ -22,6 +22,7 @@ tools/installers/
 node_modules/
 dist/
 coverage/
+.turbo/
 *.tsbuildinfo
 backend/src/generated/
 backend/uploads/

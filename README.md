@@ -20,19 +20,24 @@
 
 ## 数据库开发
 
-在 backend 目录使用 npm.cmd；首次配置、ER 图和约束说明见 [数据库文档](docs/database.md)。真实连接信息只存于被忽略的 backend/.env。
+所有依赖在仓库根目录统一安装，使用 npm workspaces + Turborepo；不再在前后端分别执行 npm ci。首次配置、ER 图和约束说明见 [数据库文档](docs/database.md)。真实连接信息只存于被忽略的 backend/.env。
 
 ```powershell
-cd backend
 npm.cmd ci
-npm.cmd run db:generate
-npm.cmd run db:validate
-npm.cmd run db:deploy
+npm.cmd run db:generate --workspace backend
+npm.cmd run db:validate --workspace backend
+npm.cmd run db:deploy --workspace backend
 npm.cmd run db:verify
-npm.cmd run start:dev
+npm.cmd run dev
 ```
 
 首次拉取需先根据 backend/.env.example 配置独立数据库；本地初始化流程见数据库文档。不要对已有业务库执行 reset。
+
+## 统一开发命令
+
+根目录执行 `npm.cmd run build`、`npm.cmd run lint`、`npm.cmd run format:check`。`npm.cmd test` 执行隔离后端测试，`npm.cmd run test:orders` 构建两端并执行隔离后端及浏览器回归；数据库与浏览器测试始终实际执行，不使用缓存。仅前端开发可用 `npm.cmd run dev --workspace frontend`，默认代理 Docker 8088。双库业务模式不通过本机副本后端写商品/订单。
+
+本地缓存策略、单应用命令、Docker 及排错见 [Workspace 与 Turborepo](docs/tooling.md)。
 
 ## 开发约定
 

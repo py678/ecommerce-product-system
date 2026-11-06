@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
+import { fileURLToPath } from 'node:url';
 
 const compose = process.env.E2E_COMPOSE === '1';
 
@@ -22,8 +23,8 @@ export default defineConfig({
     ? undefined
     : [
         {
-          command:
-            'npm.cmd --prefix ../backend run build && npm.cmd --prefix ../backend run start:prod',
+          cwd: fileURLToPath(new URL('../backend', import.meta.url)),
+          command: 'node dist/main.js',
           url: 'http://127.0.0.1:3002/docs',
           reuseExistingServer: false,
           env: {
@@ -34,7 +35,7 @@ export default defineConfig({
         },
         {
           command:
-            'npm.cmd run build && npm.cmd run preview -- --host 127.0.0.1 --port 5174 --strictPort',
+            'npm run preview -- --host 127.0.0.1 --port 5174 --strictPort',
           url: 'http://127.0.0.1:5174',
           reuseExistingServer: false,
           env: { DEV_API_TARGET: 'http://127.0.0.1:3002' },

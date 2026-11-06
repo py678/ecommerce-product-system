@@ -40,7 +40,7 @@ $env:Path += ';C:\Program Files\Docker\Docker\resources\bin'
 
 ## 日常操作
 
-图片文件保存在 `backend/uploads/`，通过 bind mount 映射到容器 `/app/uploads`，重建容器不会删除文件。该目录及图片不提交 Git、不复制进构建镜像；备份时同时保存上传目录和数据库。Windows Docker Desktop 可直接使用；Linux 部署应先创建该目录，并赋予容器 node 用户（UID 1000）写权限。Nginx 请求体限制为 6 MiB（含 multipart 开销），后端单文件限制为 5 MiB；`/uploads/` 代理到后端并公开访问。
+图片文件保存在 `backend/uploads/`，通过 bind mount 映射到容器 `/app/backend/uploads`，重建容器不会删除文件。该目录及图片不提交 Git、不复制进构建镜像；备份时同时保存上传目录和数据库。Windows Docker Desktop 可直接使用；Linux 部署应先创建该目录，并赋予容器 node 用户（UID 1000）写权限。Nginx 请求体限制为 6 MiB（含 multipart 开销），后端单文件限制为 5 MiB；`/uploads/` 代理到后端并公开访问。
 
 封面列新增后，本机与 Docker 库需分别部署迁移，并更新同步服务镜像以传递 `cover_image`。启用双向同步时，更新命令为 `docker compose -f docker-compose.yml -f docker-compose.sync.yml --profile sync up -d --build --wait`。数据库同步只同步 URL；本机与容器共用本仓库的上传目录，部署到不同机器时需另行共享/复制图片文件。
 
@@ -66,9 +66,8 @@ docker compose run --rm --no-deps --user root -e JWT_SECRET=compose-test-only-se
 浏览器回归需先在宿主机安装前后端依赖、生成后端编译产物及安装 Edge：
 
 ```powershell
-npm.cmd --prefix backend ci
-npm.cmd --prefix backend run build
-npm.cmd --prefix frontend ci
+npm.cmd ci
+npm.cmd run build
 $env:E2E_COMPOSE = '1'
 cd frontend
 npm.cmd run test:e2e
@@ -78,6 +77,8 @@ Remove-Item Env:E2E_COMPOSE
 该模式使用正在运行的容器服务（默认 http://127.0.0.1:8088），不另起开发服务。改了入口端口时设置 `E2E_BASE_URL`。Docker 不在 PATH 时设置 `DOCKER_EXECUTABLE` 为 docker.exe 的绝对路径。浏览器测试通过一次性容器清理自身随机前缀记录，数据库端口无需暴露。
 
 ## 环境故障与部署边界
+
+应用镜像使用根目录构建上下文、统一 workspace 锁文件；后端迁移与同步容器工作目录为 /app/backend。首次迁移工具链及缓存策略见 [Workspace 与 Turborepo](tooling.md)。原上传宿主机目录、数据库卷、端口及数据库角色不变，无需重新初始化或切换主副本。
 
 引擎管道不存在时，先启动 Docker Desktop 并等待 Engine running；若出现 WSL 或虚拟化提示，完成提示中的系统组件配置或重启后再试。镜像/依赖下载失败应检查网络，不必删除已有数据卷。服务启动问题先看 `ps -a` 和对应日志。本机 8080 端口被 Windows 拒绝绑定，已改用并验证 8088；出现类似错误时修改 `WEB_PORT` 为可用端口。
 

@@ -17,9 +17,10 @@
       retries: 20
   tester:
     volumes:
-      - ../scripts:/app/scripts:ro
+      - ../scripts:/app/backend/scripts:ro
     build:
-      context: ..
+      context: ../..
+      dockerfile: backend/Dockerfile
       target: migrate
     environment:
       DATABASE_URL: postgresql://postgres:disposable-test-password@db-a:5432/postgres

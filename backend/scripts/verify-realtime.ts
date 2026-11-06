@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 import { config } from 'dotenv';
 import { Client } from 'pg';
+import { toolPath } from './tool-path.ts';
 
 // A throwaway schema keeps browser fixtures out of both synchronized business DBs.
 const backend = fileURLToPath(new URL('../', import.meta.url));
@@ -37,17 +38,17 @@ let created = false;
 try {
   await client.query('CREATE SCHEMA "' + schema + '"');
   created = true;
-  await run(backend, 'node_modules/prisma/build/index.js', [
+  await run(backend, toolPath(backend, 'prisma', 'build/index.js'), [
     'migrate',
     'deploy',
   ]);
-  await run(backend, 'node_modules/vitest/vitest.mjs', [
+  await run(backend, toolPath(backend, 'vitest', 'vitest.mjs'), [
     'run',
     '--config',
     'vitest.config.e2e.ts',
     'test/realtime.e2e-spec.ts',
   ]);
-  await run(frontend, 'node_modules/@playwright/test/cli.js', [
+  await run(frontend, toolPath(frontend, '@playwright/test', 'cli.js'), [
     'test',
     'realtime.spec.ts',
   ]);

@@ -4,4 +4,4 @@ services:
       JWT_SECRET: orders-disposable-test-jwt-secret-only-not-production
     command: [node, --test, scripts/orders-sync.integration.test.ts]
     volumes:
-      - ../scripts:/app/scripts:ro
+      - ../scripts:/app/backend/scripts:ro

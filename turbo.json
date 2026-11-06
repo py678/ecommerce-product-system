@@ -1,0 +1,95 @@
+{
+  "$schema": "https://turborepo.com/schema.json",
+  "remoteCache": { "enabled": false },
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", "!**/*.tsbuildinfo"],
+      "outputs": ["dist/**", "tsconfig.build.tsbuildinfo"]
+    },
+    "ecommerce-product-system-backend#build": {
+      "dependsOn": ["db:generate"],
+      "inputs": ["$TURBO_DEFAULT$", "!src/generated/**", "!**/*.tsbuildinfo"],
+      "outputs": ["dist/**", "tsconfig.build.tsbuildinfo"]
+    },
+    "ecommerce-product-system-frontend#build": {
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        ".env",
+        ".env.local",
+        ".env.production",
+        ".env.production.local",
+        "!**/*.tsbuildinfo"
+      ],
+      "env": ["VITE_*", "NODE_ENV", "DEV_API_TARGET", "DEV_SERVER_PORT"],
+      "outputs": ["dist/**", "node_modules/.tmp/*.tsbuildinfo"]
+    },
+    "db:generate": { "cache": false },
+    "lint": { "dependsOn": ["db:generate"], "outputs": [] },
+    "format:check": { "outputs": [] },
+    "format": { "cache": false },
+    "dev": {
+      "cache": false,
+      "persistent": true,
+      "passThroughEnv": [
+        "DATABASE_URL",
+        "JWT_SECRET",
+        "JWT_EXPIRES_IN_SECONDS",
+        "ADMIN_REGISTRATION_COMPANY_ID",
+        "FRONTEND_ORIGIN",
+        "FRONTEND_DEV_ORIGIN",
+        "LOW_STOCK_THRESHOLD",
+        "PORT",
+        "DEV_API_TARGET",
+        "DEV_SERVER_PORT"
+      ]
+    },
+    "test": {
+      "dependsOn": ["build"],
+      "cache": false,
+      "passThroughEnv": [
+        "DATABASE_URL",
+        "JWT_SECRET",
+        "DOCKER_EXECUTABLE",
+        "E2E_BROWSER_CHANNEL"
+      ]
+    },
+    "test:e2e": {
+      "dependsOn": ["build"],
+      "cache": false,
+      "passThroughEnv": [
+        "DATABASE_URL",
+        "JWT_SECRET",
+        "DOCKER_EXECUTABLE",
+        "E2E_*",
+        "ADMIN_REGISTRATION_COMPANY_ID",
+        "LOW_STOCK_THRESHOLD"
+      ]
+    },
+    "test:orders": {
+      "dependsOn": ["build", "ecommerce-product-system-frontend#build"],
+      "cache": false,
+      "passThroughEnv": [
+        "DATABASE_URL",
+        "JWT_SECRET",
+        "DOCKER_EXECUTABLE",
+        "E2E_BROWSER_CHANNEL"
+      ]
+    },
+    "test:realtime": {
+      "dependsOn": ["build", "ecommerce-product-system-frontend#build"],
+      "cache": false,
+      "passThroughEnv": [
+        "DATABASE_URL",
+        "JWT_SECRET",
+        "DOCKER_EXECUTABLE",
+        "E2E_BROWSER_CHANNEL"
+      ]
+    },
+    "db:verify": {
+      "dependsOn": ["build"],
+      "cache": false,
+      "passThroughEnv": ["DATABASE_URL", "JWT_SECRET"]
+    }
+  }
+}
