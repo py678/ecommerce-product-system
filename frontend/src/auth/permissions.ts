@@ -12,6 +12,32 @@ export function canManageProduct(
   permission: 'product:update' | 'product:delete',
 ): boolean {
   return (
-    can(user, permission) && (user?.role === 'ADMIN' || user?.id === ownerId)
+    can(user, permission) &&
+    (user?.dataScopes?.[permission] === 'ALL' || user?.id === ownerId)
+  );
+}
+
+export function roleLabel(user: User | null): string {
+  return (
+    user?.roleName ||
+    (user?.role ? ROLE_LABELS[user.role as UserRole] || user.role : '')
+  );
+}
+export function homePath(user: User | null): string {
+  if (can(user, 'product:read')) return '/products';
+  if (can(user, 'order:read')) return '/orders';
+  if (can(user, 'category:read')) return '/categories';
+  if (can(user, 'role:read')) return '/admin/roles';
+  if (can(user, 'user:read')) return '/admin/users';
+  return '/profile';
+}
+export function canManageOrder(
+  user: User | null,
+  ownerId: string,
+  permission: Permission,
+): boolean {
+  return (
+    can(user, permission) &&
+    (user?.id === ownerId || user?.dataScopes?.[permission] === 'ALL')
   );
 }

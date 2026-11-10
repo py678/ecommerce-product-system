@@ -169,14 +169,14 @@ PATCH 只能提交 name、description、coverImage、price、stock、categoryId 
 
 ## 管理员账号与角色权限
 
-公开用户资料（登录/注册、auth/me、users/me、账号管理）新增只读 role 与 permissions，不返回 passwordHash 或 tokenVersion。角色为 OPERATOR（运营人员）、ADMIN（管理员）。注册支持 role，默认 OPERATOR；ADMIN 必须通过公司内部 ID 验证；个人资料中夹带 role 仍返回 400。权限矩阵见 [角色权限说明](rbac.md)。Swagger 的业务操作带 x-permissions 标记；JWT 之后由 PermissionsGuard 校验。
+公开用户资料（登录/注册、auth/me、users/me、账号管理）新增只读 role、roleId、roleName、permissions、dataScopes，不返回 passwordHash 或 tokenVersion。默认角色为 OPERATOR（运营人员）、ADMIN（管理员），可新增自定义角色。注册支持 role，默认 OPERATOR；ADMIN 必须通过公司内部 ID 验证；个人资料中夹带 role 仍返回 400。权限矩阵见 [角色权限说明](rbac.md)。Swagger 的业务操作带 x-permissions 标记；JWT 之后由 PermissionsGuard 校验。
 
 | 方法与路径（包含 /api 前缀） | 参数 | 返回与权限 |
 | --- | --- | --- |
-| GET /api/admin/users | page 默认 1、pageSize 默认 20/上限 100、search 用户名或邮箱模糊搜索、role 枚举筛选 | 200，items/total/page/pageSize/totalPages；user:read |
-| PATCH /api/admin/users/{id}/role | UUID 路径；body 只允许 role | 200，公开用户资料；user:assign-role |
+| GET /api/admin/users | page 默认 1、pageSize 默认 20/上限 100、search 用户名或邮箱模糊搜索、roleId UUID 筛选（旧 role 编码兼容） | 200，items/total/page/pageSize/totalPages；user:read |
+| PATCH /api/admin/users/{id}/role | UUID 路径；body 为 { roleId }，旧 role 编码兼容，两者仅传一个 | 200，公开用户资料；user:assign-role |
 
-账号列表与总数使用相同筛选条件及 Repeatable Read 快照。角色修改禁止自改、无变化、非法枚举及额外字段（400）；目标不存在 404，最后管理员保护返回 409。角色变化、tokenVersion 递增与 role_audits 写入同一事务；数据库事务锁串行化该库内的角色调整，并在锁内重新校验操作者仍是管理员。审计失败时全部回滚。不返回新 token，目标账号下一次受保护请求返回 401 后必须重新登录。
+账号列表与总数使用相同筛选条件及 Repeatable Read 快照。角色修改禁止自改、无变化、非法枚举及额外字段（400）；目标不存在 404，最后管理员保护返回 409。角色变化、tokenVersion 递增与 role_audits 写入同一事务；数据库事务锁串行化该库内的角色调整，并在锁内重新校验操作者仍有分配权限且不越级。审计失败时全部回滚。不返回新 token，目标账号下一次受保护请求返回 401 后必须重新登录。
 
 上传要求 upload:image（运营人员、管理员）。个人中心不需要额外权限点，但只操作 JWT 当前账号。所有业务 DTO 复用严格白名单，非契约字段返回 400；注册 DTO 接受 role 与只写 companyId；已有用户的角色仅允许通过管理员接口的 AssignRoleDto 修改。
 
@@ -204,3 +204,20 @@ REST 路由、DTO、权限点及 Swagger 契约保持不变。Socket.IO 使用�
 | PATCH | /orders/:id/cancel | reason；仅待确认/已确认可取消并回补一次 |
 
 金额为两位小数字符串。错误：400校验、401认证、403权限、404不存在或越权、409库存/状态/幂等冲突、503副本只读。DTO严格白名单，不能传creatorId、role、status、单价或金额。商品PATCH提交stock必须同时提交读取时stockVersion，过期409；被订单引用的商品DELETE返回409。
+
+## 可配置角色接口
+
+所有接口需 JWT 与对应权限；数据只接受严格 DTO 白名单。公开 role 为自定义编码字符串，roleId 为 UUID；roleName 为显示名，dataScopes 按具体权限返回 OWN/ALL。
+
+| 方法 | /api 路径 | 权限 / 说明 |
+| --- | --- | --- |
+| GET | /admin/roles/permissions | role:read；固定目录，code/name/module/scoped |
+| GET | /admin/roles/options | user:read；启用角色的 id/code/name |
+| GET | /admin/roles | role:read；page=1、pageSize=20（≤100）、search；items/total/page/pageSize |
+| POST | /admin/roles | role:create；code/name/description?/grants[{permission,scope}]，201 |
+| GET | /admin/roles/:id | role:read；详情及 version、userCount、grants |
+| PATCH | /admin/roles/:id | role:update；必传 version，可更新 name/description/enabled/grants；200 |
+| DELETE | /admin/roles/:id | role:delete；无用户的自定义角色，204 |
+| GET | /admin/roles/:id/audits | role:read；分页审计，删除后保留 |
+
+错误：400 非法字段/权限依赖/系统角色保护，401 凭证失效或角色停用，403 缺权限或越级授予，404 角色不存在，409 角色编码/版本/引用冲突，503 副本拒绝写配置和业务认证。用户分配和角色配置都撤销旧凭证，不返回新 token。完整规则见 [RBAC](rbac.md)。

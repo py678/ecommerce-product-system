@@ -225,7 +225,7 @@ export function ProductsPage() {
           <span className="eyebrow">PRODUCT CATALOG</span>
           <h1>商品管理</h1>
           <p>
-            {user?.role === 'ADMIN'
+            {user?.dataScopes?.['product:update'] === 'ALL'
               ? '查看并管理所有成员的商品。'
               : '查看全部商品，仅可编辑和删除自己创建的商品。'}
           </p>

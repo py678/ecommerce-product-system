@@ -231,7 +231,8 @@ describe.sequential('RBAC and resource scope HTTP API', () => {
     expect(r.body.items[0]).not.toHaveProperty('tokenVersion');
     await api('get', '/api/admin/users', 'admin')
       .query({ role: 'ROOT' })
-      .expect(400);
+      .expect(200)
+      .expect((r) => expect(r.body.total).toBe(0));
     await api('patch', '/api/admin/users/' + users.target.id + '/role', 'admin')
       .send({ role: 'ADMIN', tokenVersion: 99 })
       .expect(400);
@@ -404,15 +405,23 @@ describe.sequential('RBAC and resource scope HTTP API', () => {
     const doc = (
       await request(app.getHttpServer()).get('/docs-json').expect(200)
     ).body;
-    expect(doc.components.schemas.UserResponseDto.properties.role.enum).toEqual(
-      ['OPERATOR', 'ADMIN'],
+    expect(doc.components.schemas.UserResponseDto.properties.role.type).toBe(
+      'string',
     );
+    expect(
+      doc.components.schemas.UserResponseDto.properties.roleId.format,
+    ).toBe('uuid');
     expect(doc.components.schemas.LoginDto.properties.loginRole.enum).toEqual([
       'OPERATOR',
       'ADMIN',
     ]);
     expect(doc.components.schemas.LoginDto.required).not.toContain('loginRole');
-    expect(doc.components.schemas.AssignRoleDto.required).toContain('role');
+    expect(doc.components.schemas.AssignRoleDto.properties.roleId.format).toBe(
+      'uuid',
+    );
+    expect(
+      doc.components.schemas.AssignRoleDto.properties.role.deprecated,
+    ).toBe(true);
     for (const [path, method] of [
       ['/api/admin/users', 'get'],
       ['/api/admin/users/{id}/role', 'patch'],

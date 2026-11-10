@@ -19,9 +19,10 @@ flowchart LR
 ```
 
 - `DatabaseModule`：管理 Prisma 生命周期，启动连接、关闭时释放连接池。
-- `AuthModule`：注册、登录、当前用户；导出 JWT Guard 与 PermissionsGuard，提供当前数据库角色及静态权限映射。
-- `CategoriesModule`：分类全局可读，写入仅管理员；分页搜索、商品数量；通过数据库外键阻止删除引用中的分类。
-- `ProductsModule`：商品列表和详情供所有登录角色共享查看；列表和计数共用筛选 where；写条件单独附带归属，管理员可写全部，运营人员仅自己。
+- `AuthModule`：注册、登录、当前用户；导出 JWT Guard 与 PermissionsGuard，读取关联的有效角色、权限和数据范围，拒绝副本业务认证。
+- `RolesModule`：固定权限目录、角色配置、OWN/ALL 范围、审计与旧凭证撤销；AdminModule 负责用户角色分配。
+- `CategoriesModule`：分类全局共享，读写分别按权限授权；分页搜索、商品数量；通过数据库外键阻止删除引用中的分类。
+- `ProductsModule`：商品列表和详情按 product:read 的 OWN/ALL 范围查看；默认角色共享读取；列表和计数共用筛选 where；写条件单独附带归属，管理员可写全部，运营人员仅自己。
 - `configure-app.ts`：统一 `/api` 前缀、DTO 验证、CORS 和 Swagger，并与集成测试共用配置。
 - `prisma/`：schema 与版本迁移；开发迁移使用独立影子库。
 - `test/`：真实数据库 HTTP 测试；`scripts/`：建库及底层数据库约束验证。
@@ -75,3 +76,7 @@ OrdersModule独立组织Controller/DTO/Service；复用JWT、权限Guard、Datab
 订单事件只投递创建人/管理员，商品库存事件仍共享广播；前端列表和详情复用300ms合并、重连补拉，保留URL查询。订单无物理删除或自由状态编辑接口。
 
 同步桥在PRIMARY/REPLICA部署按transaction_id复制完整源事务；目标提交后才确认源队列，失败停止本方向后续组，重放使用原事件版本。一次102事件的大订单不会受旧100行批量上限拆分。用户/分类仍双向；商品与订单强制Docker主写。STANDALONE保留隔离开发兼容，不用于生产双主库存。
+
+## 可配置 RBAC
+
+授权链：JWT → 当前用户/tokenVersion → enabled Role → Permission Guard → 按操作 OWN/ALL 的 Service 条件 → Prisma。列表和 count 共享 where。角色编辑/用户分配经事务锁复核权限，审计与版本递增同事务，提交后断开相关 Socket。权限配置单主写入；业务鉴权拒绝只读副本；同步桥按源事务复制角色、权限和用户版本。详见 [RBAC](rbac.md)。

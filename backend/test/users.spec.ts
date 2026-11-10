@@ -95,6 +95,8 @@ describe('Personal centre validation and password transaction', () => {
     'userId',
     'username',
     'role',
+    'roleId',
+    'roleName',
     'status',
     'password',
     'passwordHash',
@@ -124,6 +126,13 @@ describe('Personal centre validation and password transaction', () => {
       id: 'id',
       username: 'name',
       role: 'OPERATOR' as const,
+      roleId: 'role',
+      roleDefinition: {
+        code: 'OPERATOR',
+        name: '运营人员',
+        enabled: true,
+        grants: [],
+      },
       email: dto.email,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -132,10 +141,13 @@ describe('Personal centre validation and password transaction', () => {
     };
     expect(Object.keys(publicUser(user)).sort()).toEqual([
       'createdAt',
+      'dataScopes',
       'email',
       'id',
       'permissions',
       'role',
+      'roleId',
+      'roleName',
       'updatedAt',
       'username',
     ]);

@@ -4,7 +4,7 @@ import { ArrowRightOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { Link, Navigate, useLocation } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 import type { UserRole } from '../api/types';
-import { ROLE_LABELS } from '../auth/permissions';
+import { ROLE_LABELS, homePath } from '../auth/permissions';
 import { useAuth } from '../auth/useAuth';
 import { LoadingScreen } from '../components/PageFeedback';
 import { passwordRules, trimInput, usernameRules } from '../utils/format';
@@ -33,9 +33,10 @@ export function AuthPage({ register = false }: { register?: boolean }) {
     (from.startsWith('/products') ||
       from.startsWith('/categories') ||
       from === '/profile' ||
-      from.startsWith('/admin/users'))
+      from.startsWith('/admin/') ||
+      from.startsWith('/orders'))
       ? from
-      : '/products';
+      : homePath(user);
 
   if (loading) return <LoadingScreen />;
   if (user) return <Navigate to={destination} replace />;

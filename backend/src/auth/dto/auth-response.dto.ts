@@ -1,5 +1,4 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { UserRole } from '../../generated/prisma/client.js';
 import { PERMISSIONS, type Permission } from '../permissions.js';
 
 export class UserResponseDto {
@@ -9,8 +8,21 @@ export class UserResponseDto {
   @ApiProperty()
   username: string;
 
-  @ApiProperty({ enum: UserRole, description: '当前数据库角色' })
-  role: UserRole;
+  @ApiProperty({ description: '有效角色编码，含自定义角色' })
+  role: string;
+
+  @ApiProperty({ format: 'uuid' })
+  roleId: string;
+
+  @ApiProperty({ description: '角色显示名称' })
+  roleName: string;
+
+  @ApiProperty({
+    type: 'object',
+    additionalProperties: { type: 'string', enum: ['OWN', 'ALL'] },
+    description: '各权限点的数据范围',
+  })
+  dataScopes: Partial<Record<Permission, 'OWN' | 'ALL'>>;
 
   @ApiProperty({ enum: PERMISSIONS, isArray: true })
   permissions: Permission[];

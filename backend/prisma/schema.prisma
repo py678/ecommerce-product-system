@@ -19,8 +19,8 @@ model RoleAudit {
   id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   actorId   String   @map("actor_id") @db.Uuid
   targetId  String   @map("target_id") @db.Uuid
-  fromRole  String   @map("from_role") @db.VarChar(16)
-  toRole    String   @map("to_role") @db.VarChar(16)
+  fromRole  String   @map("from_role") @db.VarChar(32)
+  toRole    String   @map("to_role") @db.VarChar(32)
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
 
   @@index([targetId, createdAt])
@@ -33,6 +33,8 @@ model User {
   email        String    @unique @db.VarChar(254)
   passwordHash String    @map("password_hash") @db.VarChar(255)
   role         UserRole  @default(OPERATOR)
+  roleId       String    @default(dbgenerated("'00000000-0000-4000-8000-000000000011'::uuid")) @map("role_id") @db.Uuid
+  roleDefinition Role @relation(fields: [roleId], references: [id], onDelete: Restrict)
   tokenVersion Int       @default(0) @map("token_version")
   createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt    DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
@@ -40,6 +42,59 @@ model User {
   orders       Order[]
 
   @@map("users")
+  @@index([roleId])
+}
+
+enum DataScope {
+  OWN
+  ALL
+}
+
+model Role {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code String @unique @db.VarChar(32)
+  name String @db.VarChar(80)
+  description String @default("") @db.VarChar(500)
+  enabled Boolean @default(true)
+  system Boolean @default(false)
+  version Int @default(0)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  grants RolePermission[]
+  users User[]
+  @@map("roles")
+}
+
+model PermissionDefinition {
+  code String @id @db.VarChar(40)
+  name String @db.VarChar(80)
+  module String @db.VarChar(20)
+  scoped Boolean @default(false)
+  grants RolePermission[]
+  @@map("permissions")
+}
+
+model RolePermission {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  roleId String @map("role_id") @db.Uuid
+  permissionCode String @map("permission_code") @db.VarChar(40)
+  scope DataScope @default(OWN)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission PermissionDefinition @relation(fields: [permissionCode], references: [code], onDelete: Restrict)
+  @@unique([roleId, permissionCode])
+  @@map("role_permissions")
+}
+
+model PermissionAudit {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  actorId String @map("actor_id") @db.Uuid
+  roleId String @map("role_id") @db.Uuid
+  action String @db.VarChar(24)
+  before Json?
+  after Json?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  @@index([roleId, createdAt])
+  @@map("permission_audits")
 }
 
 model Category {

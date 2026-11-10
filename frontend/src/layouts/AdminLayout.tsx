@@ -10,7 +10,7 @@ import {
   MenuUnfoldOutlined,
 } from '@ant-design/icons';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { can, ROLE_LABELS } from '../auth/permissions';
+import { can, roleLabel, homePath } from '../auth/permissions';
 import { useAuth } from '../auth/useAuth';
 
 export function AdminLayout() {
@@ -18,15 +18,17 @@ export function AdminLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
-  const section = location.pathname.startsWith('/orders')
-    ? '/orders'
-    : location.pathname.startsWith('/admin/users')
-      ? '/admin/users'
-      : location.pathname.startsWith('/profile')
-        ? '/profile'
-        : location.pathname.startsWith('/categories')
-          ? '/categories'
-          : '/products';
+  const section = location.pathname.startsWith('/admin/roles')
+    ? '/admin/roles'
+    : location.pathname.startsWith('/orders')
+      ? '/orders'
+      : location.pathname.startsWith('/admin/users')
+        ? '/admin/users'
+        : location.pathname.startsWith('/profile')
+          ? '/profile'
+          : location.pathname.startsWith('/categories')
+            ? '/categories'
+            : '/products';
 
   return (
     <Layout className="admin-layout">
@@ -39,7 +41,7 @@ export function AdminLayout() {
         onBreakpoint={setCollapsed}
         trigger={null}
       >
-        <Link className="brand" to="/products">
+        <Link className="brand" to={homePath(user)}>
           <span className="brand-mark">S</span>
           <span>
             SILK<span className="brand-caption">商品管理工作台</span>
@@ -92,6 +94,15 @@ export function AdminLayout() {
                   },
                 ]
               : []),
+            ...(can(user, 'role:read')
+              ? [
+                  {
+                    key: '/admin/roles',
+                    icon: <UserOutlined />,
+                    label: '角色管理',
+                  },
+                ]
+              : []),
             { key: '/profile', icon: <UserOutlined />, label: '个人中心' },
           ]}
         />
@@ -111,15 +122,17 @@ export function AdminLayout() {
             />
             <span className="breadcrumb">
               工作台 <span>/</span>{' '}
-              {section === '/orders'
-                ? '订单管理'
-                : section === '/admin/users'
-                  ? '账号管理'
-                  : section === '/profile'
-                    ? '个人中心'
-                    : section === '/products'
-                      ? '商品管理'
-                      : '分类管理'}
+              {section === '/admin/roles'
+                ? '角色管理'
+                : section === '/orders'
+                  ? '订单管理'
+                  : section === '/admin/users'
+                    ? '账号管理'
+                    : section === '/profile'
+                      ? '个人中心'
+                      : section === '/products'
+                        ? '商品管理'
+                        : '分类管理'}
             </span>
           </Space>
           <Space size={12}>
@@ -130,7 +143,7 @@ export function AdminLayout() {
             <Typography.Text className="user-name">
               {user?.username}{' '}
               {user?.role && (
-                <span className="muted">（{ROLE_LABELS[user.role]}）</span>
+                <span className="muted">（{roleLabel(user)}）</span>
               )}
             </Typography.Text>
             <Button

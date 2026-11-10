@@ -8,6 +8,7 @@ import {
   Routes,
   useLocation,
 } from 'react-router-dom';
+import { homePath } from './auth/permissions';
 import { RequirePermission } from './auth/RequirePermission';
 import { useAuth } from './auth/useAuth';
 import { AdminLayout } from './layouts/AdminLayout';
@@ -57,6 +58,13 @@ const AdminUsersPage = lazy(() =>
   })),
 );
 
+const RolesPage = lazy(() =>
+  import('./pages/RolesPage').then((m) => ({ default: m.RolesPage })),
+);
+function Home() {
+  const { user } = useAuth();
+  return <Navigate to={homePath(user)} replace />;
+}
 function RequireAuth() {
   const { user, loading, error, signOut } = useAuth();
   const location = useLocation();
@@ -100,7 +108,7 @@ export default function App() {
         <Route path="/register" element={<AuthPage register />} />
         <Route element={<RequireAuth />}>
           <Route element={<AdminLayout />}>
-            <Route index element={<Navigate to="/products" replace />} />
+            <Route index element={<Home />} />
             <Route element={<RequirePermission permission="product:read" />}>
               <Route path="/products" element={<ProductsPage />} />
               <Route path="/products/:id" element={<ProductDetailPage />} />
@@ -117,6 +125,9 @@ export default function App() {
             </Route>
             <Route element={<RequirePermission permission="order:create" />}>
               <Route path="/orders/new" element={<OrderCreatePage />} />
+            </Route>
+            <Route element={<RequirePermission permission="role:read" />}>
+              <Route path="/admin/roles" element={<RolesPage />} />
             </Route>
             <Route path="/profile" element={<ProfilePage />} />
           </Route>

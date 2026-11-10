@@ -22,6 +22,16 @@ describe.sequential('Realtime authenticated transport', () => {
     username: 'realtime_fixture',
     email: 'realtime@example.invalid',
     role: 'OPERATOR',
+    roleId: randomUUID(),
+    roleDefinition: {
+      code: 'OPERATOR',
+      name: '运营人员',
+      enabled: true,
+      grants: [
+        { permissionCode: 'product:read', scope: 'ALL' },
+        { permissionCode: 'category:read', scope: 'ALL' },
+      ],
+    },
     tokenVersion: 0,
     createdAt: new Date(),
     updatedAt: new Date(),

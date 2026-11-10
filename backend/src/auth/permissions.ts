@@ -19,8 +19,13 @@ export const PERMISSIONS = [
   'upload:image',
   'user:read',
   'user:assign-role',
+  'role:read',
+  'role:create',
+  'role:update',
+  'role:delete',
 ] as const;
 export type Permission = (typeof PERMISSIONS)[number];
+// Compatibility fixtures and initial-role documentation only; live authorization reads roleDefinition.grants.
 export const ROLE_PERMISSIONS: Record<UserRole, readonly Permission[]> = {
   OPERATOR: [
     'order:read',
@@ -46,10 +51,21 @@ export const RequirePermissions = (...permissions: Permission[]) =>
   );
 export interface Actor {
   id: string;
-  role: UserRole;
+  role: string;
+  roleId?: string;
+  permissions?: Permission[];
+  dataScopes?: Partial<Record<Permission, 'OWN' | 'ALL'>>;
 }
-// Write scope only: all authenticated roles share product reads.
-// Attach ownership to the actual write, never just a preliminary read.
-export function productScope(actor: Actor): Prisma.ProductWhereInput {
-  return actor.role === 'ADMIN' ? {} : { userId: actor.id };
+export function hasAllScope(actor: Actor, permission: Permission): boolean {
+  return (
+    actor.permissions?.includes(permission) === true &&
+    actor.dataScopes?.[permission] === 'ALL'
+  );
+}
+// Absence of a verified scope fails closed, including callers using a role name alone.
+export function productScope(
+  actor: Actor,
+  permission: Permission = 'product:update',
+): Prisma.ProductWhereInput {
+  return hasAllScope(actor, permission) ? {} : { userId: actor.id };
 }

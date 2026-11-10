@@ -8,10 +8,23 @@ const columns = {
     'password_hash',
     'token_version',
     'role',
+    'role_id',
     'created_at',
     'updated_at',
   ],
   categories: ['id', 'name', 'created_at', 'updated_at'],
+  roles: [
+    'id',
+    'code',
+    'name',
+    'description',
+    'enabled',
+    'system',
+    'version',
+    'created_at',
+    'updated_at',
+  ],
+  role_permissions: ['id', 'role_id', 'permission_code', 'scope'],
   products: [
     'id',
     'user_id',
@@ -121,15 +134,23 @@ async function applyInTransaction(
       if (change.table_name === 'users' && change.row_data.role === 'VIEWER')
         change.row_data = { ...change.row_data, role: 'OPERATOR' };
       const quoted = fields.map((field) => `"${field}"`).join(', ');
+      const primaryTarget =
+        change.table_name === 'users' &&
+        (await commerceRole(target)) === 'PRIMARY';
       const updates = fields
         .filter((field) => field !== 'id')
         .map((field) => {
+          // Role assignment is authoritative on PRIMARY, even if a replica profile/password event is newer.
+          if (primaryTarget && (field === 'role_id' || field === 'role'))
+            return `"${field}"="users"."${field}"`;
           // An older profile event must never restore a password/role or revive revoked credentials.
           if (change.table_name === 'users' && field === 'token_version')
             return '"token_version"=GREATEST("users"."token_version",EXCLUDED."token_version")';
           if (
             change.table_name === 'users' &&
-            (field === 'password_hash' || field === 'role')
+            (field === 'password_hash' ||
+              field === 'role' ||
+              field === 'role_id')
           )
             return (
               '"' +
@@ -154,6 +175,11 @@ async function applyInTransaction(
                   ...change.row_data,
                   token_version: change.row_data.token_version ?? 0,
                   role: change.row_data.role ?? 'OPERATOR',
+                  role_id:
+                    change.row_data.role_id ??
+                    (change.row_data.role === 'ADMIN'
+                      ? '00000000-0000-4000-8000-000000000010'
+                      : '00000000-0000-4000-8000-000000000011'),
                 }
               : change.table_name === 'products'
                 ? {

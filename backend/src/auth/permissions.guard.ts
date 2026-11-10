@@ -6,11 +6,7 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { AuthenticatedRequest } from './jwt-auth.guard.js';
-import {
-  PERMISSION_KEY,
-  ROLE_PERMISSIONS,
-  type Permission,
-} from './permissions.js';
+import { PERMISSION_KEY, type Permission } from './permissions.js';
 @Injectable()
 export class PermissionsGuard implements CanActivate {
   constructor(private readonly reflector: Reflector) {}
@@ -24,7 +20,7 @@ export class PermissionsGuard implements CanActivate {
     if (
       !required?.length ||
       !user ||
-      !required.every((p) => ROLE_PERMISSIONS[user.role]?.includes(p))
+      !required.every((p) => user.permissions?.includes(p))
     )
       throw new ForbiddenException('没有执行此操作的权限');
     return true;

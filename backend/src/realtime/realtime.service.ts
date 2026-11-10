@@ -2,6 +2,7 @@ import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import type { Socket } from 'socket.io';
 import { AccessTokenService } from '../auth/access-token.service.js';
+import { hasAllScope } from '../auth/permissions.js';
 import type {
   Resource,
   Operation,
@@ -62,9 +63,23 @@ export class RealtimeService implements OnModuleDestroy {
       }
     }
   }
-  resourceChanged(resource: Resource, id: string, operation: Operation) {
+  resourceChanged(
+    resource: Resource,
+    id: string,
+    operation: Operation,
+    ownerId?: string,
+  ) {
     const payload: ResourceEvent = { eventId: randomUUID(), id, operation };
     for (const [key, entry] of this.clients) {
+      const permission =
+        resource === 'product' ? 'product:read' : 'category:read';
+      if (!entry.verified.user.permissions.includes(permission)) continue;
+      if (
+        resource === 'product' &&
+        !hasAllScope(entry.verified.user, permission) &&
+        entry.verified.user.id !== ownerId
+      )
+        continue;
       try {
         if (entry.verified.expiresAt <= Date.now())
           this.invalidate(key, 'expired');
@@ -86,8 +101,9 @@ export class RealtimeService implements OnModuleDestroy {
         continue;
       }
       if (
-        entry.verified.user.id === creatorId ||
-        entry.verified.user.role === 'ADMIN'
+        entry.verified.user.permissions.includes('order:read') &&
+        (entry.verified.user.id === creatorId ||
+          hasAllScope(entry.verified.user, 'order:read'))
       ) {
         try {
           entry.socket.emit('order:changed', payload);
@@ -157,9 +173,10 @@ export function notifyResourceChange(
   resource: Resource,
   id: string,
   operation: Operation,
+  ownerId?: string,
 ) {
   try {
-    service.resourceChanged(resource, id, operation);
+    service.resourceChanged(resource, id, operation, ownerId);
   } catch {
     notificationLogger.warn('已提交操作的实时通知失败，请刷新数据');
   }

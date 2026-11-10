@@ -69,8 +69,11 @@ export class ProductsController {
   })
   @ApiOkResponse({ type: ProductPageDto })
   @RequirePermissions('product:read')
-  findAll(@Query() query: ProductQueryDto) {
-    return this.products.findAll(query);
+  findAll(
+    @Query() query: ProductQueryDto,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.products.findAll(query, request.user);
   }
 
   @Get(':id')
@@ -78,8 +81,11 @@ export class ProductsController {
   @ApiOkResponse({ type: ProductResponseDto })
   @ApiNotFoundResponse({ description: '商品不存在' })
   @RequirePermissions('product:read')
-  findOne(@Param('id', ParseUUIDPipe) id: string) {
-    return this.products.findOne(id);
+  findOne(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.products.findOne(id, request.user);
   }
 
   @Patch(':id')

@@ -16,17 +16,25 @@ export type Permission =
   | 'category:delete'
   | 'upload:image'
   | 'user:read'
-  | 'user:assign-role';
+  | 'user:assign-role'
+  | 'role:read'
+  | 'role:create'
+  | 'role:update'
+  | 'role:delete';
 export interface AdminUserQuery {
   page: number;
   pageSize: number;
   search?: string;
-  role?: UserRole;
+  role?: string;
+  roleId?: string;
 }
 export interface User {
   id: string;
   username: string;
-  role: UserRole;
+  role: string;
+  roleId: string;
+  roleName: string;
+  dataScopes: Partial<Record<Permission, DataScope>>;
   permissions: Permission[];
   email: string;
   createdAt: string;
@@ -119,4 +127,58 @@ export interface ProductPage {
   /** @deprecated Compute from total and pageSize. */
   totalPages: number;
   lowStockThreshold: number;
+}
+
+export type DataScope = 'OWN' | 'ALL';
+export interface RoleGrant {
+  permission: Permission;
+  scope: DataScope;
+}
+export interface RoleOption {
+  id: string;
+  code: string;
+  name: string;
+}
+export interface Role extends RoleOption {
+  description: string;
+  enabled: boolean;
+  system: boolean;
+  version: number;
+  userCount: number;
+  grants: RoleGrant[];
+  createdAt: string;
+  updatedAt: string;
+}
+export interface PermissionDefinition {
+  code: Permission;
+  name: string;
+  module: string;
+  scoped: boolean;
+}
+export interface RoleInput {
+  code: string;
+  name: string;
+  description: string;
+  grants: RoleGrant[];
+}
+export interface RolePage {
+  items: Role[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+export interface RoleAudit {
+  id: string;
+  actorId: string;
+  roleId: string;
+  action: string;
+  before: unknown;
+  after: unknown;
+  createdAt: string;
+}
+export interface AuditPage {
+  items: RoleAudit[];
+  total: number;
+  page: number;
+  pageSize: number;
 }

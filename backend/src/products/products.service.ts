@@ -64,17 +64,24 @@ export class ProductsService {
           include: PRODUCT_RELATIONS,
         }),
       );
-      notifyResourceChange(this.realtime, 'product', response.id, 'created');
+      notifyResourceChange(
+        this.realtime,
+        'product',
+        response.id,
+        'created',
+        response.userId,
+      );
       return response;
     } catch (error) {
       return this.handleWriteError(error);
     }
   }
 
-  async findAll(query: ProductQueryDto): Promise<ProductPageDto> {
+  async findAll(query: ProductQueryDto, actor: Actor): Promise<ProductPageDto> {
     const filters = productListQuery(query, this.threshold);
     const where: Prisma.ProductWhereInput = {
       ...filters.where,
+      ...productScope(actor, 'product:read'),
     };
     const orderBy = filters.orderBy;
     const [items, total] = await this.db.$transaction(
@@ -102,8 +109,8 @@ export class ProductsService {
     };
   }
 
-  async findOne(id: string): Promise<ProductResponseDto> {
-    return this.findInScope(id, {});
+  async findOne(id: string, actor: Actor): Promise<ProductResponseDto> {
+    return this.findInScope(id, productScope(actor, 'product:read'));
   }
 
   private async findInScope(
@@ -157,7 +164,13 @@ export class ProductsService {
           include: PRODUCT_RELATIONS,
         }),
       );
-      notifyResourceChange(this.realtime, 'product', response.id, 'updated');
+      notifyResourceChange(
+        this.realtime,
+        'product',
+        response.id,
+        'updated',
+        response.userId,
+      );
       return response;
     } catch (error) {
       if (
@@ -174,10 +187,21 @@ export class ProductsService {
 
   async remove(id: string, actor: Actor): Promise<void> {
     await this.authority.requireWriter();
-    await this.findInScope(id, productScope(actor));
+    const product = await this.findInScope(
+      id,
+      productScope(actor, 'product:delete'),
+    );
     try {
-      await this.db.product.delete({ where: { ...productScope(actor), id } });
-      notifyResourceChange(this.realtime, 'product', id, 'deleted');
+      await this.db.product.delete({
+        where: { ...productScope(actor, 'product:delete'), id },
+      });
+      notifyResourceChange(
+        this.realtime,
+        'product',
+        id,
+        'deleted',
+        product.userId,
+      );
     } catch (error) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&

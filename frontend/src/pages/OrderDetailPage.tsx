@@ -20,7 +20,7 @@ import { api, errorMessage } from '../api/client';
 import { useResource } from '../hooks/useResource';
 import { useRealtimeRefresh } from '../realtime/useRealtimeRefresh';
 import { LoadingScreen, RequestError } from '../components/PageFeedback';
-import { can } from '../auth/permissions';
+import { canManageOrder } from '../auth/permissions';
 import { useAuth } from '../auth/useAuth';
 import { ORDER_COLORS, ORDER_LABELS } from '../orders/order-types';
 
@@ -79,37 +79,40 @@ export function OrderDetailPage() {
         loading={loading}
       >
         <Space wrap>
-          {o.status === 'PENDING' && can(user, 'order:confirm') && (
-            <Popconfirm
-              title="手动确认该订单？此操作不代表支付成功。"
-              onConfirm={() => mutate('confirm')}
-            >
-              <Button type="primary" loading={busy}>
-                确认订单
+          {o.status === 'PENDING' &&
+            canManageOrder(user, o.creatorId, 'order:confirm') && (
+              <Popconfirm
+                title="手动确认该订单？此操作不代表支付成功。"
+                onConfirm={() => mutate('confirm')}
+              >
+                <Button type="primary" loading={busy}>
+                  确认订单
+                </Button>
+              </Popconfirm>
+            )}
+          {o.status === 'CONFIRMED' &&
+            canManageOrder(user, o.creatorId, 'order:ship') && (
+              <Button
+                type="primary"
+                disabled={busy}
+                onClick={() => setAction('ship')}
+              >
+                填写物流并发货
               </Button>
-            </Popconfirm>
-          )}
-          {o.status === 'CONFIRMED' && can(user, 'order:ship') && (
-            <Button
-              type="primary"
-              disabled={busy}
-              onClick={() => setAction('ship')}
-            >
-              填写物流并发货
-            </Button>
-          )}
-          {o.status === 'SHIPPED' && can(user, 'order:complete') && (
-            <Popconfirm
-              title="确认该订单已完成？"
-              onConfirm={() => mutate('complete')}
-            >
-              <Button type="primary" loading={busy}>
-                完成订单
-              </Button>
-            </Popconfirm>
-          )}
+            )}
+          {o.status === 'SHIPPED' &&
+            canManageOrder(user, o.creatorId, 'order:complete') && (
+              <Popconfirm
+                title="确认该订单已完成？"
+                onConfirm={() => mutate('complete')}
+              >
+                <Button type="primary" loading={busy}>
+                  完成订单
+                </Button>
+              </Popconfirm>
+            )}
           {['PENDING', 'CONFIRMED'].includes(o.status) &&
-            can(user, 'order:cancel') && (
+            canManageOrder(user, o.creatorId, 'order:cancel') && (
               <Button
                 danger
                 disabled={busy}

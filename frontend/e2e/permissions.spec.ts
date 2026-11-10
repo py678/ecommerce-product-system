@@ -32,6 +32,17 @@ async function setup(page: Page, role: keyof typeof rolePermissions) {
     updatedAt: '2026-01-01T00:00:00Z',
     role,
     permissions: rolePermissions[role],
+    roleId:
+      role === 'ADMIN'
+        ? '00000000-0000-4000-8000-000000000010'
+        : '00000000-0000-4000-8000-000000000011',
+    roleName: role === 'ADMIN' ? '管理员' : '运营人员',
+    dataScopes: Object.fromEntries(
+      rolePermissions[role].map((p) => [
+        p,
+        role === 'ADMIN' || p === 'product:read' ? 'ALL' : 'OWN',
+      ]),
+    ),
   };
   await page.route('**/socket.io/**', (route) => route.abort());
   await page.addInitScript(() =>
@@ -128,7 +139,18 @@ test('administrator filters accounts and confirms role changes with loading feed
   await page.route('**/api/admin/users?*', (r) =>
     r.fulfill({
       json: {
-        items: [user, { ...target, role: targetRole }],
+        items: [
+          user,
+          {
+            ...target,
+            role: targetRole,
+            roleId:
+              targetRole === 'ADMIN'
+                ? '00000000-0000-4000-8000-000000000010'
+                : '00000000-0000-4000-8000-000000000011',
+            roleName: targetRole === 'ADMIN' ? '管理员' : '运营人员',
+          },
+        ],
         total: 2,
         page: 1,
         pageSize: 20,
@@ -142,11 +164,29 @@ test('administrator filters accounts and confirms role changes with loading feed
   });
   await page.route('**/api/admin/users/*/role', async (r) => {
     changes++;
-    expect(r.request().postDataJSON()).toEqual({ role: 'ADMIN' });
+    expect(r.request().postDataJSON()).toEqual({
+      roleId: '00000000-0000-4000-8000-000000000010',
+    });
     await pending;
     targetRole = 'ADMIN';
     await r.fulfill({ json: { ...target, role: targetRole } });
   });
+  await page.route('**/api/admin/roles/options', (r) =>
+    r.fulfill({
+      json: [
+        {
+          id: '00000000-0000-4000-8000-000000000010',
+          code: 'ADMIN',
+          name: '管理员',
+        },
+        {
+          id: '00000000-0000-4000-8000-000000000011',
+          code: 'OPERATOR',
+          name: '运营人员',
+        },
+      ],
+    }),
+  );
   await page.goto('/admin/users');
   await expect(page.getByRole('button', { name: '当前账号' })).toBeDisabled();
   await page.getByRole('button', { name: '调整角色', exact: true }).click();
@@ -167,7 +207,8 @@ test('administrator filters accounts and confirms role changes with loading feed
   const request = page.waitForRequest(
     (r) =>
       r.url().includes('/api/admin/users?') &&
-      new URL(r.url()).searchParams.get('role') === 'ADMIN',
+      new URL(r.url()).searchParams.get('roleId') ===
+        '00000000-0000-4000-8000-000000000010',
   );
   await page.getByRole('combobox', { name: '角色筛选' }).click();
   await page.getByRole('option', { name: '管理员', exact: true }).click();

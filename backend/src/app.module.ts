@@ -1,4 +1,5 @@
 import { OrdersModule } from './orders/orders.module.js';
+import { RolesModule } from './roles/roles.module.js';
 import { AdminModule } from './admin/admin.module.js';
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
@@ -12,6 +13,7 @@ import { UploadModule } from './upload/upload.module.js';
 
 @Module({
   imports: [
+    RolesModule,
     OrdersModule,
     AdminModule,
     DatabaseModule,

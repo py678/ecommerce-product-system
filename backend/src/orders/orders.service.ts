@@ -5,7 +5,12 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { createHash, randomUUID } from 'node:crypto';
-import type { Actor } from '../auth/permissions.js';
+import {
+  hasAllScope,
+  productScope,
+  type Actor,
+  type Permission,
+} from '../auth/permissions.js';
 import { CommerceAuthorityService } from '../commerce/commerce.module.js';
 import { DatabaseService } from '../database/database.service.js';
 import { Prisma, OrderStatus } from '../generated/prisma/client.js';
@@ -24,8 +29,8 @@ const relations = {
   logs: { orderBy: [{ createdAt: 'asc' as const }, { id: 'asc' as const }] },
 } satisfies Prisma.OrderInclude;
 type RecordWithItems = Prisma.OrderGetPayload<{ include: typeof relations }>;
-const scope = (actor: Actor) =>
-  actor.role === 'ADMIN' ? {} : { creatorId: actor.id };
+const scope = (actor: Actor, permission: Permission = 'order:read') =>
+  hasAllScope(actor, permission) ? {} : { creatorId: actor.id };
 function summary(o: Prisma.OrderGetPayload<object>) {
   return {
     id: o.id,
@@ -174,7 +179,10 @@ export class OrdersService {
           items.map((i) => i.productId),
         );
         const products = await tx.product.findMany({
-          where: { id: { in: items.map((i) => i.productId) } },
+          where: {
+            id: { in: items.map((i) => i.productId) },
+            ...productScope(actor, 'product:read'),
+          },
         });
         const snapshots = items.map((i) => {
           const p = products.find((p) => p.id === i.productId);
@@ -231,7 +239,7 @@ export class OrdersService {
       { timeout: 15000 },
     );
     if (result.created)
-      this.notify(
+      await this.notify(
         result.order,
         items.map((i) => i.productId),
         'created',
@@ -248,16 +256,15 @@ export class OrdersService {
     const result = await this.db.$transaction(
       async (tx) => {
         // Scope the locking read AND final update, including resource ownership.
-        const owner =
-          actor.role === 'ADMIN'
-            ? Prisma.empty
-            : Prisma.sql` AND creator_id=${actor.id}::uuid`;
+        const owner = hasAllScope(actor, ('order:' + action) as Permission)
+          ? Prisma.empty
+          : Prisma.sql` AND creator_id=${actor.id}::uuid`;
         const locked = await tx.$queryRaw<{ id: string }[]>(
           Prisma.sql`SELECT id FROM orders WHERE id=${id}::uuid ${owner} FOR UPDATE`,
         );
         if (!locked.length) throw new NotFoundException('订单不存在');
         const order = await tx.order.findFirstOrThrow({
-          where: { id, ...scope(actor) },
+          where: { id, ...scope(actor, ('order:' + action) as Permission) },
           include: relations,
         });
         const allowed: Record<typeof action, OrderStatus[]> = {
@@ -299,7 +306,11 @@ export class OrdersService {
           select: { username: true },
         });
         return tx.order.update({
-          where: { ...scope(actor), id, status: order.status },
+          where: {
+            ...scope(actor, ('order:' + action) as Permission),
+            id,
+            status: order.status,
+          },
           data: {
             status: next[action],
             ...(action === 'confirm'
@@ -329,7 +340,7 @@ export class OrdersService {
       },
       { timeout: 15000 },
     );
-    this.notify(
+    await this.notify(
       result,
       action === 'cancel' ? result.items.map((i) => i.productId) : [],
       'updated',
@@ -341,13 +352,29 @@ export class OrdersService {
       Prisma.sql`SELECT id FROM products WHERE id IN (${Prisma.join(ids.map((id) => Prisma.sql`${id}::uuid`))}) ORDER BY id FOR UPDATE`,
     );
   }
-  private notify(
+  private async notify(
     order: RecordWithItems,
     ids: string[],
     operation: 'created' | 'updated',
   ) {
-    for (const id of ids)
-      notifyResourceChange(this.realtime, 'product', id, 'updated');
+    try {
+      const products = ids.length
+        ? await this.db.product.findMany({
+            where: { id: { in: ids } },
+            select: { id: true, userId: true },
+          })
+        : [];
+      for (const p of products)
+        notifyResourceChange(
+          this.realtime,
+          'product',
+          p.id,
+          'updated',
+          p.userId,
+        );
+    } catch {
+      /* Notifications must not change a committed order result. */
+    }
     // A transport failure must never turn a committed order into an HTTP failure.
     try {
       this.realtime.orderChanged(order.id, order.creatorId, operation);

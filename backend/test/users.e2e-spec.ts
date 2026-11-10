@@ -61,10 +61,13 @@ describe.sequential('Personal centre HTTP API', () => {
     expect(r.body).toMatchObject(owner);
     expect(Object.keys(r.body).sort()).toEqual([
       'createdAt',
+      'dataScopes',
       'email',
       'id',
       'permissions',
       'role',
+      'roleId',
+      'roleName',
       'updatedAt',
       'username',
     ]);
@@ -92,6 +95,8 @@ describe.sequential('Personal centre HTTP API', () => {
     'userId',
     'username',
     'role',
+    'roleId',
+    'roleName',
     'status',
     'password',
     'passwordHash',

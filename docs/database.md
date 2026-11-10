@@ -4,6 +4,9 @@
 
 ```mermaid
 erDiagram
+  roles ||--o{ users : assigned
+  roles ||--o{ role_permissions : grants
+  permissions ||--o{ role_permissions : defines
   users ||--o{ products : creates
   categories ||--o{ products : contains
   users {
@@ -12,6 +15,7 @@ erDiagram
     varchar email UK
     varchar password_hash
     UserRole role
+    uuid role_id FK
     int token_version
     timestamptz created_at
     timestamptz updated_at
@@ -20,8 +24,36 @@ erDiagram
     uuid id PK
     uuid actor_id
     uuid target_id
-    varchar_16 from_role
-    varchar_16 to_role
+    varchar_32 from_role
+    varchar_32 to_role
+    timestamptz created_at
+  }
+  roles {
+    uuid id PK
+    varchar code UK
+    varchar name
+    boolean enabled
+    boolean system
+    int version
+  }
+  permissions {
+    varchar code PK
+    varchar name
+    boolean scoped
+  }
+  role_permissions {
+    uuid id PK
+    uuid role_id FK
+    varchar permission_code FK
+    DataScope scope
+  }
+  permission_audits {
+    uuid id PK
+    uuid actor_id
+    uuid role_id
+    varchar action
+    jsonb before
+    jsonb after
     timestamptz created_at
   }
   categories {
@@ -125,3 +157,9 @@ erDiagram
 - _sync_events.transaction_id：pg_current_xact_id()::text；按源事务整体重放及确认，失败整组回滚，订单三表也记录同步事件。
 
 双库商品与订单仅主库写入，副本供查询；users/categories继续双向，禁止用旧整行双向产品同步覆盖库存。默认STANDALONE仅用于独立环境；实际双库必须配置互补角色。
+
+## 可配置 RBAC 结构
+
+20261110023925_configurable_rbac 新增 users.role_id 外键并建立索引，指向 roles，删除使用 RESTRICT；legacy role 由数据库触发器保持兼容，不能用它判断自定义角色权限。roles.code 唯一且限制格式；role_permissions 的 (role_id, permission_code) 唯一，范围为 OWN/ALL。permissions 为 21 项固定目录。permission_audits 不设角色外键，角色删除后仍保留前后快照；RoleAudit 历史编码扩为 VARCHAR(32)。
+
+迁移按原 ADMIN/OPERATOR 回填确定的角色 ID，现有 tokenVersion 加一；不删除业务数据。两库种子 ID/时间一致。角色、权限关联启用同步捕获和 TRUNCATE 保护，副本禁止配置写入；主库角色分配不能被副本旧资料事件覆盖。角色审计留在源库。详见 [RBAC](rbac.md)。

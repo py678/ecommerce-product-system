@@ -50,6 +50,10 @@ try {
     '--exit-code',
   ]);
   await run(backend, '--test', ['scripts/database.integration.test.ts']);
+  env.RBAC_ISOLATED_TEST = '1';
+  await run(backend, '--test', [
+    'scripts/configurable-rbac.integration.test.ts',
+  ]);
   if (!process.argv.includes('--database-only'))
     await run(backend, toolPath(backend, 'vitest', 'vitest.mjs'), [
       'run',

@@ -7,6 +7,12 @@ import type {
 import axios from 'axios';
 import { sessionToken, expireSession } from '../auth/session';
 import type {
+  Role,
+  RoleInput,
+  RoleOption,
+  RolePage,
+  PermissionDefinition,
+  AuditPage,
   AuthResponse,
   AdminUserQuery,
   UserRole,
@@ -75,6 +81,34 @@ export function errorMessage(error: unknown): string {
 export const isCanceled = axios.isCancel;
 
 export const api = {
+  roles: {
+    catalog: async (signal?: AbortSignal) =>
+      (
+        await http.get<PermissionDefinition[]>('/admin/roles/permissions', {
+          signal,
+        })
+      ).data,
+    options: async (signal?: AbortSignal) =>
+      (await http.get<RoleOption[]>('/admin/roles/options', { signal })).data,
+    list: async (params: ListQuery, signal?: AbortSignal) =>
+      (await http.get<RolePage>('/admin/roles', { params, signal })).data,
+    create: async (input: RoleInput) =>
+      (await http.post<Role>('/admin/roles', input)).data,
+    update: async (
+      id: string,
+      input: Partial<RoleInput> & { version: number; enabled?: boolean },
+    ) => (await http.patch<Role>('/admin/roles/' + id, input)).data,
+    remove: async (id: string) => {
+      await http.delete('/admin/roles/' + id);
+    },
+    audits: async (id: string, params: ListQuery, signal?: AbortSignal) =>
+      (
+        await http.get<AuditPage>('/admin/roles/' + id + '/audits', {
+          params,
+          signal,
+        })
+      ).data,
+  },
   orders: {
     list: async (params: OrderQuery, signal?: AbortSignal) =>
       (await http.get<OrderPage>('/orders', { params, signal })).data,
@@ -93,8 +127,8 @@ export const api = {
   adminUsers: {
     list: async (params: AdminUserQuery, signal?: AbortSignal) =>
       (await http.get<Page<User>>('/admin/users', { params, signal })).data,
-    assignRole: async (id: string, role: UserRole) =>
-      (await http.patch<User>(`/admin/users/${id}/role`, { role })).data,
+    assignRole: async (id: string, roleId: string) =>
+      (await http.patch<User>(`/admin/users/${id}/role`, { roleId })).data,
   },
   users: {
     me: async (signal?: AbortSignal) =>

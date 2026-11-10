@@ -17,7 +17,15 @@ describe('RBAC fail-closed permissions and role transaction', () => {
     expect(productScope({ id: 'me', role: 'OPERATOR' })).toEqual({
       userId: 'me',
     });
-    expect(productScope({ id: 'me', role: 'ADMIN' })).toEqual({});
+    expect(productScope({ id: 'me', role: 'ADMIN' })).toEqual({ userId: 'me' });
+    expect(
+      productScope({
+        id: 'me',
+        role: 'CUSTOM',
+        permissions: ['product:update'],
+        dataScopes: { 'product:update': 'ALL' },
+      }),
+    ).toEqual({});
   });
   it('denies missing permission metadata and forged role names', () => {
     const reflector = new Reflector();
@@ -35,19 +43,46 @@ describe('RBAC fail-closed permissions and role transaction', () => {
   function setup(actorRole = 'ADMIN', targetRole = 'ADMIN', count = 1) {
     const update = vi.fn(),
       audit = vi.fn();
+    const role = (code: string) => ({
+      id: code,
+      code,
+      name: code,
+      enabled: true,
+      grants: ROLE_PERMISSIONS[code as 'ADMIN' | 'OPERATOR'].map(
+        (permissionCode) => ({
+          permissionCode,
+          scope:
+            code === 'ADMIN' ||
+            (!permissionCode.startsWith('order:') &&
+              !['product:update', 'product:delete'].includes(permissionCode))
+              ? 'ALL'
+              : 'OWN',
+        }),
+      ),
+    });
+    const record = (code: string) => ({
+      role: code,
+      roleId: code,
+      roleDefinition: role(code),
+    });
     const tx = {
       $executeRaw: vi.fn(),
       user: {
         findUnique: vi
           .fn()
-          .mockResolvedValueOnce({ role: actorRole })
-          .mockResolvedValueOnce({ role: targetRole }),
+          .mockResolvedValueOnce(record(actorRole))
+          .mockResolvedValueOnce(record(targetRole)),
         count: vi.fn().mockResolvedValue(count),
         update,
       },
       roleAudit: { create: audit },
+      role: { findUnique: vi.fn().mockResolvedValue(role('OPERATOR')) },
+      permissionAudit: { create: vi.fn() },
     };
     const db = {
+      commerceConfig: {
+        findUnique: vi.fn().mockResolvedValue({ writeRole: 'STANDALONE' }),
+      },
       $transaction: vi.fn(async (fn: (tx: unknown) => unknown) => fn(tx)),
     };
     return {
@@ -109,7 +144,11 @@ describe('RBAC fail-closed permissions and role transaction', () => {
     expect(tx.$executeRaw).toHaveBeenCalledOnce();
     expect(update).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: { role: 'OPERATOR', tokenVersion: { increment: 1 } },
+        data: {
+          roleId: 'OPERATOR',
+          role: 'OPERATOR',
+          tokenVersion: { increment: 1 },
+        },
       }),
     );
   });

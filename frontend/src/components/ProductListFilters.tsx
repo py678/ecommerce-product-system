@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { Form, Input, Select } from 'antd';
 import type { ProductListQuery } from '../api/types';
 import { productQueryErrors } from '../pages/product-list-query';
+import { useAuth } from '../auth/useAuth';
+import { can } from '../auth/permissions';
 import { CategorySelect } from './CategorySelect';
 
 interface Props {
@@ -10,6 +12,7 @@ interface Props {
 }
 
 export function ProductListFilters({ query, onChange }: Props) {
+  const { user } = useAuth();
   const [name, setName] = useState(query.name ?? '');
   const composing = useRef(false);
   // Keep browser history/URL restoration, but never overwrite unfinished IME text.
@@ -53,14 +56,16 @@ export function ProductListFilters({ query, onChange }: Props) {
           }}
         />
       </Form.Item>
-      <Form.Item label="商品分类">
-        <CategorySelect
-          value={query.categoryId}
-          allowClear
-          placeholder="全部分类"
-          onChange={(categoryId) => onChange({ categoryId })}
-        />
-      </Form.Item>
+      {can(user, 'category:read') && (
+        <Form.Item label="商品分类">
+          <CategorySelect
+            value={query.categoryId}
+            allowClear
+            placeholder="全部分类"
+            onChange={(categoryId) => onChange({ categoryId })}
+          />
+        </Form.Item>
+      )}
       <Form.Item
         label="最低价"
         validateStatus={errors.minPrice ? 'error' : undefined}

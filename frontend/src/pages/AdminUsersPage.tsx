@@ -15,31 +15,30 @@ import {
 } from 'antd';
 import type { TableColumnsType } from 'antd';
 import { api, errorMessage } from '../api/client';
-import type { AdminUserQuery, User, UserRole } from '../api/types';
+import type { AdminUserQuery, User, RoleOption } from '../api/types';
 import { useAuth } from '../auth/useAuth';
-import { can, ROLE_LABELS } from '../auth/permissions';
+import { can, roleLabel } from '../auth/permissions';
 import { RequestError } from '../components/PageFeedback';
 import { useResource } from '../hooks/useResource';
 import { formatTime } from '../utils/format';
-const roles = (Object.entries(ROLE_LABELS) as [UserRole, string][]).map(
-  ([value, label]) => ({ value, label }),
-);
 function RoleModal({
   target,
+  roles,
   onCancel,
   onSaved,
 }: {
   target: User;
+  roles: RoleOption[];
   onCancel: () => void;
   onSaved: () => void;
 }) {
-  const [form] = Form.useForm<{ role: UserRole }>();
+  const [form] = Form.useForm<{ roleId: string }>();
   const [saving, setSaving] = useState(false);
   const { message } = App.useApp();
-  async function save(values: { role: UserRole }) {
+  async function save(values: { roleId: string }) {
     setSaving(true);
     try {
-      await api.adminUsers.assignRole(target.id, values.role);
+      await api.adminUsers.assignRole(target.id, values.roleId);
       void message.success('角色已更新，该账号需重新登录');
       onSaved();
     } catch (error) {
@@ -71,23 +70,26 @@ function RoleModal({
         form={form}
         layout="vertical"
         disabled={saving}
-        initialValues={{ role: target.role }}
+        initialValues={{ roleId: target.roleId }}
         onFinish={save}
       >
         <Form.Item
-          name="role"
+          name="roleId"
           label="角色"
           rules={[
             { required: true, message: '请选择角色' },
             {
               validator: (_rule, value: unknown) =>
-                value === target.role
+                value === target.roleId
                   ? Promise.reject(new Error('请选择不同的角色'))
                   : Promise.resolve(),
             },
           ]}
         >
-          <Select virtual={false} options={roles} />
+          <Select
+            virtual={false}
+            options={roles.map((r) => ({ value: r.id, label: r.name }))}
+          />
         </Form.Item>
       </Form>
     </Modal>
@@ -103,6 +105,16 @@ export function AdminUsersPage() {
     [query],
   );
   const { data, loading, error, refresh } = useResource(load);
+  const loadRoles = useCallback(
+    (signal: AbortSignal) => api.roles.options(signal),
+    [],
+  );
+  const {
+    data: roles = [],
+    loading: rolesLoading,
+    error: rolesError,
+    refresh: refreshRoles,
+  } = useResource(loadRoles);
   const columns: TableColumnsType<User> = [
     { title: '用户名', dataIndex: 'username' },
     { title: '邮箱', dataIndex: 'email' },
@@ -119,7 +131,7 @@ export function AdminUsersPage() {
                 : 'default'
           }
         >
-          {ROLE_LABELS[item.role]}
+          {roleLabel(item)}
         </Tag>
       ),
     },
@@ -148,7 +160,7 @@ export function AdminUsersPage() {
       <div className="page-heading">
         <div>
           <h1>账号管理</h1>
-          <p>管理运营人员与管理员角色。</p>
+          <p>将账号分配到已定义的角色，变更后该账号需要重新登录。</p>
         </div>
       </div>
       <Card className="catalog-card">
@@ -171,16 +183,18 @@ export function AdminUsersPage() {
             placeholder="全部角色"
             style={{ width: 160 }}
             allowClear
-            options={roles}
-            value={query.role}
-            onChange={(role: UserRole | undefined) =>
-              setQuery({ ...query, page: 1, role })
+            options={roles.map((r) => ({ value: r.id, label: r.name }))}
+            loading={rolesLoading}
+            value={query.roleId}
+            onChange={(roleId: string | undefined) =>
+              setQuery({ ...query, page: 1, roleId })
             }
           />
           <Button onClick={refresh} loading={loading}>
             刷新
           </Button>
         </Space>
+        {rolesError && <RequestError error={rolesError} retry={refreshRoles} />}
         {error && <RequestError error={error} retry={refresh} />}
         <Table<User>
           rowKey="id"
@@ -207,6 +221,7 @@ export function AdminUsersPage() {
       {target && (
         <RoleModal
           target={target}
+          roles={roles}
           onCancel={() => setTarget(null)}
           onSaved={() => {
             setTarget(null);
