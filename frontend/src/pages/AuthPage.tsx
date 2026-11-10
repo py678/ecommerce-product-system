@@ -14,7 +14,6 @@ interface AuthFields {
   email: string;
   password: string;
   confirm: string;
-  loginRole: UserRole;
   role: UserRole;
   companyId?: string;
 }
@@ -56,7 +55,6 @@ export function AuthPage({ register = false }: { register?: boolean }) {
         : await api.auth.login({
             username: values.username,
             password: values.password,
-            loginRole: values.loginRole,
           });
       signIn(response);
       void message.success(register ? '注册成功，欢迎使用' : '登录成功');
@@ -122,27 +120,31 @@ export function AuthPage({ register = false }: { register?: boolean }) {
             key={register ? 'register' : 'login'}
             layout="vertical"
             form={form}
-            initialValues={{ loginRole: 'OPERATOR', role: 'OPERATOR' }}
+            initialValues={{ role: 'OPERATOR' }}
             size="large"
             requiredMark={false}
             onFinish={submit}
             disabled={saving}
           >
-            <Form.Item
-              label={register ? '注册身份' : '登录身份'}
-              name={register ? 'role' : 'loginRole'}
-              rules={[{ required: true, message: '请选择登录身份' }]}
-            >
-              <Radio.Group
-                optionType="button"
-                buttonStyle="solid"
-                block
-                options={Object.entries(ROLE_LABELS).map(([value, label]) => ({
-                  value,
-                  label,
-                }))}
-              />
-            </Form.Item>
+            {register && (
+              <Form.Item
+                label="注册身份"
+                name="role"
+                rules={[{ required: true, message: '请选择注册身份' }]}
+              >
+                <Radio.Group
+                  optionType="button"
+                  buttonStyle="solid"
+                  block
+                  options={Object.entries(ROLE_LABELS).map(
+                    ([value, label]) => ({
+                      value,
+                      label,
+                    }),
+                  )}
+                />
+              </Form.Item>
+            )}
             {register && registrationRole === 'ADMIN' && (
               <Form.Item
                 label="公司内部 ID"
@@ -160,11 +162,7 @@ export function AuthPage({ register = false }: { register?: boolean }) {
                 />
               </Form.Item>
             )}
-            {!register && (
-              <p className="muted">
-                请选择账号已有角色，登录入口不会改变账号权限。
-              </p>
-            )}
+
             <Form.Item
               label="用户名"
               name="username"

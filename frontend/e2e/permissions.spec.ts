@@ -274,47 +274,36 @@ for (const role of ['OPERATOR'] as const) {
     },
   );
 }
-for (const [role, label] of Object.entries({
-  OPERATOR: '运营人员',
-  ADMIN: '管理员',
-})) {
-  test(
-    label + ' login entrance submits a role check and reports mismatch',
-    async ({ page }) => {
-      await page.route('**/api/auth/login', async (r) => {
-        expect(r.request().postDataJSON()).toEqual({
-          username: 'example_user',
-          password: 'Example-password-123!',
-          loginRole: role,
-        });
-        await r.fulfill({
-          status: 401,
-          json: { message: '账号角色与所选登录入口不匹配，请选择正确入口' },
-        });
-      });
-      await page.goto('/login');
-      await page.getByText(label, { exact: true }).click();
-      await page.getByLabel('用户名', { exact: true }).fill('example_user');
-      await page
-        .getByLabel('密码', { exact: true })
-        .fill('Example-password-123!');
-      await page.getByRole('button', { name: '登录工作台' }).click();
-      await expect(
-        page.getByText('账号角色与所选登录入口不匹配，请选择正确入口', {
-          exact: true,
-        }),
-      ).toBeVisible();
-      expect(
-        await page.evaluate(() =>
-          sessionStorage.getItem('silk-shop.access-token'),
-        ),
-      ).toBeNull();
-      await expect(page.getByLabel('用户名', { exact: true })).toHaveValue(
-        'example_user',
-      );
-    },
+test('unified login omits identity selection and sends only credentials with failure feedback', async ({
+  page,
+}) => {
+  let requests = 0;
+  await page.route('**/api/auth/login', async (r) => {
+    requests++;
+    expect(r.request().postDataJSON()).toEqual({
+      username: 'example_user',
+      password: 'Example-password-123!',
+    });
+    await r.fulfill({ status: 401, json: { message: '用户名或密码错误' } });
+  });
+  await page.goto('/login');
+  await expect(page.getByLabel('用户名', { exact: true })).toBeVisible();
+  await expect(page.getByRole('radio')).toHaveCount(0);
+  await expect(page.getByText('登录身份', { exact: true })).toHaveCount(0);
+  await page.getByLabel('用户名', { exact: true }).fill('example_user');
+  await page.getByLabel('密码', { exact: true }).fill('Example-password-123!');
+  await page.getByRole('button', { name: '登录工作台' }).click();
+  await expect(
+    page.getByText('用户名或密码错误', { exact: true }),
+  ).toBeVisible();
+  expect(requests).toBe(1);
+  await expect(page.getByLabel('用户名', { exact: true })).toHaveValue(
+    'example_user',
   );
-}
+  expect(
+    await page.evaluate(() => sessionStorage.getItem('silk-shop.access-token')),
+  ).toBeNull();
+});
 
 test('administrator registration requires a company identifier and preserves fields on rejection', async ({
   page,
@@ -393,3 +382,51 @@ test('operator registration omits a company identifier after switching roles', a
     page.getByText('用户名或邮箱已被使用', { exact: true }),
   ).toBeVisible();
 });
+
+for (const [role, roleName] of Object.entries({
+  OPERATOR: '运营人员',
+  ADMIN: '管理员',
+  VISITOR: '访客',
+})) {
+  test(
+    'unified login displays the server-assigned ' + role + ' identity',
+    async ({ page }) => {
+      const user = {
+        id: 'login-fixture',
+        username: 'example_user',
+        email: 'example@example.invalid',
+        role,
+        roleId: 'fixture-role',
+        roleName,
+        permissions: [],
+        dataScopes: {},
+        createdAt: '2026-01-01T00:00:00Z',
+        updatedAt: '2026-01-01T00:00:00Z',
+      };
+      await page.route('**/socket.io/**', (r) => r.abort());
+      await page.route('**/api/auth/login', (r) => {
+        expect(r.request().postDataJSON()).toEqual({
+          username: 'example_user',
+          password: 'Example-password-123!',
+        });
+        return r.fulfill({
+          json: {
+            accessToken: 'login-fixture-token',
+            tokenType: 'Bearer',
+            expiresIn: 3600,
+            user,
+          },
+        });
+      });
+      await page.route('**/api/users/me', (r) => r.fulfill({ json: user }));
+      await page.goto('/login');
+      await page.getByLabel('用户名', { exact: true }).fill('example_user');
+      await page
+        .getByLabel('密码', { exact: true })
+        .fill('Example-password-123!');
+      await page.getByRole('button', { name: '登录工作台' }).click();
+      await expect(page).toHaveURL(/\/profile$/);
+      await expect(page.locator('.user-name')).toContainText(roleName);
+    },
+  );
+}

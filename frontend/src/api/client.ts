@@ -161,11 +161,8 @@ export const api = {
       role?: UserRole;
       companyId?: string;
     }) => (await http.post<AuthResponse>('/auth/register', input)).data,
-    login: async (input: {
-      username: string;
-      password: string;
-      loginRole?: UserRole;
-    }) => (await http.post<AuthResponse>('/auth/login', input)).data,
+    login: async (input: { username: string; password: string }) =>
+      (await http.post<AuthResponse>('/auth/login', input)).data,
     me: async (signal: AbortSignal) =>
       (await http.get<User>('/auth/me', { signal })).data,
   },
