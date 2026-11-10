@@ -1,68 +1,315 @@
-# ecommerce-product-system — 电商商品管理后台
+﻿# ecommerce-product-system — 电商后台管理系统
 
-技术栈：NestJS、React、TypeScript、Ant Design、Prisma、PostgreSQL。
-仓库：https://github.com/py678/ecommerce-product-system
+基于 NestJS、Prisma、PostgreSQL 与 React 的内部管理后台，用于管理商品、共享分类、后台代客订单和账号权限。**本项目没有消费者商城前台，不包含真实支付、退款和退货。**
 
-## 当前进度
+仓库：[py678/ecommerce-product-system](https://github.com/py678/ecommerce-product-system)。
 
-已完成商品/分类、注册登录、个人中心、两角色权限、图片上传、筛选排序与 Socket.IO。新增后台订单：录单扣库存、幂等重试、手动确认/发货/完成、取消回补与操作记录；库存使用单主与整事务复制。测试方式见订单规格与部署指南。
+## 目录导航
 
-前后端启动后访问 [管理后台](http://localhost:5173)，首次使用自行注册账号。所有登录角色均可查看全部商品；运营人员仅管理自己的商品，管理员管理全部商品；分类全局可读，仅管理员维护。新注册默认运营人员，也可选择管理员并验证公司内部 ID。本地配置、验证及生产部署注意事项见 [启动指南](docs/local-start.md)。
+- [功能与操作入口](#功能与操作入口)
+- [角色权限](#角色权限)
+- [商品与分类规则](#商品与分类规则)
+- [订单与库存规则](#订单与库存规则)
+- [快速启动](#快速启动)
+- [本地开发](#本地开发)
+- [数据库与双库同步](#数据库与双库同步)
+- [测试与质量检查](#测试与质量检查)
+- [接口文档与同事验收](#接口文档与同事验收)
+- [目录结构与技术栈](#目录结构与技术栈)
+- [常见问题](#常见问题)
+- [详细文档](#详细文档)
 
-容器启动：在根目录执行 `node scripts/setup-compose.ts`、`docker compose up -d --build`，访问 http://localhost:8088。需要已运行的 Docker Linux 引擎；完整步骤与数据维护见 [Docker 部署指南](docs/deployment.md)。通过 `docker-compose.sync.yml` 启用双库同步；订单版本中商品/订单仅 Docker 主库写入，本机为只读副本，用户/分类保持双向。旧双向部署升级须先按订单部署说明完成备份、排空队列与角色切换。
+## 功能与操作入口
 
-后端启动后访问 [Swagger](http://localhost:3000/docs)，注册登录并授权后即可测试分类、商品管理。配置与接口详情见 [API 文档](docs/api.md)，模块说明见 [架构文档](docs/architecture.md)。
+| 功能       | 页面或入口            | 能做什么                                                                     |
+| ---------- | --------------------- | ---------------------------------------------------------------------------- |
+| 注册与登录 | `/register`、`/login` | 表单校验、JWT 认证；可选择运营人员或管理员，管理员注册额外校验公司内部 ID    |
+| 商品管理   | `/products`           | 查看全部商品，分页、筛选、排序、新建、编辑和删除；操作范围取决于角色和创建者 |
+| 商品详情   | `/products/:id`       | 查看商品描述、封面、金额、库存、分类和创建者等信息                           |
+| 图片上传   | 商品创建/编辑弹窗     | 单张封面上传、预览和清空；支持 JPG/JPEG/PNG/WEBP，单文件最多 5 MiB           |
+| 分类管理   | `/categories`         | 搜索、分页及关联商品数量；管理员创建、编辑和删除共享分类                     |
+| 订单管理   | `/orders`             | 查询订单、后台代客录单，手动确认、发货、完成或取消，查看快照与操作日志       |
+| 个人中心   | `/profile`            | 查看个人资料、编辑邮箱、修改密码；改密使所有旧登录凭证失效                   |
+| 账号管理   | `/admin/users`        | 管理员查询账号及修改角色；角色变更撤销目标用户旧凭证并记录审计               |
+| 实时更新   | 页面顶部连接状态      | 显示连接中/已连接/中断；商品、分类和授权范围内的订单变化触发自动刷新         |
+| 接口文档   | `/docs`               | Swagger 查看请求字段、返回结构、认证要求并调试接口                           |
 
-## 交付材料
-
-- [数据库设计与 ER 图](docs/database.md)
-- [商品图片上传：接口、部署与完整文件清单](docs/product-images.md)
-
-## 数据库开发
-
-所有依赖在仓库根目录统一安装，使用 npm workspaces + Turborepo；不再在前后端分别执行 npm ci。首次配置、ER 图和约束说明见 [数据库文档](docs/database.md)。真实连接信息只存于被忽略的 backend/.env。
-
-```powershell
-npm.cmd ci
-npm.cmd run db:generate --workspace backend
-npm.cmd run db:validate --workspace backend
-npm.cmd run db:deploy --workspace backend
-npm.cmd run db:verify
-npm.cmd run dev
-```
-
-首次拉取需先根据 backend/.env.example 配置独立数据库；本地初始化流程见数据库文档。不要对已有业务库执行 reset。
-
-## 统一开发命令
-
-根目录执行 `npm.cmd run build`、`npm.cmd run lint`、`npm.cmd run format:check`。`npm.cmd test` 执行隔离后端测试，`npm.cmd run test:orders` 构建两端并执行隔离后端及浏览器回归；数据库与浏览器测试始终实际执行，不使用缓存。仅前端开发可用 `npm.cmd run dev --workspace frontend`，默认代理 Docker 8088。双库业务模式不通过本机副本后端写商品/订单。
-
-本地缓存策略、单应用命令、Docker 及排错见 [Workspace 与 Turborepo](docs/tooling.md)。
-
-## 开发约定
-
-- 每个开发日提交并推送有效变更，使用 Conventional Commits，正文记录原因、变更和验证。
-- 本仓库配置 .githooks/commit-msg；新克隆后执行 git config core.hooksPath .githooks。
-- 首次成功推送后向周勇（Leo.Zhou）和黄锐（Bruce.Huang）发送仓库地址。
-- 密码、令牌、node_modules、生成代码、构建产物和安装包不提交。
-- 全局执行约定见 [AGENTS.md](AGENTS.md)；Prisma 迁移、NestJS 归属、Swagger 同步和前端表单流程由 [.agents/skills/](.agents/skills/) 下的 Codex Skills 按任务加载；后续安排见项目计划.md。
-
-## 商品筛选与排序
-
-名称、分类、闭区间价格、库存组合筛选，支持排序、URL 条件恢复和 300ms 防抖。参数兼容、文件清单与部署说明见 [商品筛选与排序](docs/product-filters.md)。
+页面入口由 React Router 管理；浏览器后退/前进可导航。后端使用独立认证与权限检查，隐藏按钮不能替代接口授权。
 
 ## 角色权限
 
-已实现两角色权限点、后端 Guard 与资源归属、管理员账号管理和角色变更撤销旧会话。首次管理员需受控脚本设置；迁移、权限矩阵与部署步骤见 [角色权限说明](docs/rbac.md)。
+系统只有 `OPERATOR`（运营人员）和 `ADMIN`（管理员）两种角色，没有访客角色。
 
-## 个人中心
+| 操作                     | 运营人员           | 管理员                                             |
+| ------------------------ | ------------------ | -------------------------------------------------- |
+| 查看商品列表和详情       | 全部商品           | 全部商品                                           |
+| 创建商品、上传封面       | 允许，新商品归自己 | 允许，新商品归自己                                 |
+| 修改、删除商品           | 仅自己创建的商品   | 全部商品，但仍受订单引用等业务限制                 |
+| 查看分类                 | 全部共享分类       | 全部共享分类                                       |
+| 创建、编辑、删除分类     | 不允许             | 允许，但被商品引用的分类不能删除                   |
+| 查看和操作订单           | 仅自己创建的订单   | 全部订单，但不能跳过状态规则                       |
+| 查看和修改个人资料、密码 | 仅本人             | 仅本人                                             |
+| 查询账号、调整角色       | 不允许             | 允许；不能修改自己的角色，也不能降级最后一个管理员 |
 
-登录后从菜单进入个人中心，可查看资料、编辑邮箱和修改密码；改密后所有旧会话需重新登录。升级后的首次访问也需重新登录。规则、迁移和文件清单见 [个人中心说明](docs/personal-center.md)。
+- 注册默认运营人员；选择管理员时，后端验证私有配置 `ADMIN_REGISTRATION_COMPANY_ID`。未配置时关闭管理员注册，内部 ID 不写入前端代码、不在本文公开。
+- 公司内部 ID 应通过公司认可的私密渠道提供，不要截图公开或提交到 Git。
+- 没有管理员时，可由维护者使用受控首次管理员脚本指定已有账号；不是每次启动都要执行，详见 [角色权限说明](docs/rbac.md)。
+- 普通接口拒绝前端指定创建者或角色；商品和订单操作的身份来自 JWT。
+- 修改密码后所有旧会话需重新登录；修改角色会递增目标用户的 tokenVersion，使其旧凭证失效。
+- 登录凭证使用 `sessionStorage` 保存。双账号演示推荐普通窗口与无痕窗口，避免复制标签页带入原有会话；普通退出仅清理当前浏览器会话凭证。
 
-## 实时通知
+## 商品与分类规则
 
-已接入 Socket.IO：商品/分类变更后自动刷新，连接状态可见，重连补拉、300ms 合并和会话撤销。需要重建前后端镜像。事件契约、启动命令、双浏览器验证与文件清单见 [实时通知规格](docs/realtime.md)。
+### 商品资料
 
-## 后台订单
+商品包含名称、描述、非负价格、整数库存、分类、可选封面、创建者及时间。价格以 Decimal 存储，接口使用金额字符串，最多两位小数。
 
-登录后进入“订单管理”。创建立即扣库存，由创建人或管理员手动确认；已发货订单禁止取消且不回补库存。订单历史快照保留，关联商品禁止删除。业务规则、验收和启动步骤见 [订单规格](docs/orders.md)。
+商品可按以下条件组合查询：
+
+- 名称：大小写不敏感的模糊匹配。
+- 分类：扁平分类，只匹配当前分类，不包含子分类。
+- 价格：最低价和最高价均包含边界，也可只填写一个边界。
+- 库存：零库存 `stock = 0`；低库存 `0 < stock < 6`；正常库存 `stock >= 6`。阈值由后端 `LOW_STOCK_THRESHOLD` 配置，默认 6。
+- 排序：价格、库存、创建时间、更新时间，支持升序或降序；默认创建时间降序，并以 ID 同方向稳定排序。
+
+筛选条件、排序和分页保存在 URL 中，刷新与浏览器导航后恢复；请求使用 300ms 防抖。商品默认每页 10 条，最多 100 条。
+
+编辑库存必须携带读取时的 `stockVersion`。库存已被订单或其他操作修改时返回 409，需要重新读取商品后提交，不能用旧库存覆盖新库存。
+
+图片先通过独立上传接口保存，再将 URL 随商品表单提交。移除封面只清空商品引用，不删除服务器文件。上传目录 `backend/uploads/` 不提交 Git，备份时需与数据库一起保存。
+
+### 删除边界
+
+- 商品未被订单引用且当前用户有权限时，允许物理删除。
+- **商品一旦被订单引用，即使订单已完成或已取消，仍不能删除，接口返回 409。**
+- 分类下有商品时不能删除；先将商品调整到其他分类，再删除空分类。
+- 当前没有商品归档、上下架、SKU 多规格、分类树、分类合并或商品批量导入功能；这些不属于已经实现的能力。
+
+## 订单与库存规则
+
+订单用于员工代客录单，不代表线上付款。两种角色均可选择共享商品录单，但运营人员只能访问自己创建的订单。
+
+| 操作     | 状态变化                                     | 库存行为   | 必要条件                               |
+| -------- | -------------------------------------------- | ---------- | -------------------------------------- |
+| 创建订单 | → `PENDING` 待确认                           | 立即扣库存 | 库存充足，客户信息和商品明细有效       |
+| 确认订单 | `PENDING` → `CONFIRMED` 已确认               | 不再次扣减 | 创建人或管理员手动确认，不代表支付成功 |
+| 发货     | `CONFIRMED` → `SHIPPED` 已发货               | 不变       | 填写物流公司与运单号                   |
+| 完成     | `SHIPPED` → `COMPLETED` 已完成               | 不变       | 创建人或管理员手动完成                 |
+| 取消     | `PENDING` / `CONFIRMED` → `CANCELLED` 已取消 | 只回补一次 | 必须填写取消原因                       |
+
+**已发货和已完成订单不能取消，也不会回补库存，管理员同样受此限制。** 当前没有订单物理删除、退货、退款或修改已创建订单明细的入口；录错的待确认/已确认订单应取消后重新创建。
+
+- 订单、明细、库存和操作日志在同一事务内提交或回滚。
+- 创建请求具有幂等保护，网络重试不会重复生成订单或扣减库存；同键不同内容返回 409。
+- 商品名称、封面和成交单价保存为订单快照，之后修改商品不会改写历史快照。
+- 订单实时事件仅发送给创建人和管理员，不向其他运营人员广播客户资料。
+
+完整状态约束、接口和并发验收见 [订单规格](docs/orders.md)。
+
+## 快速启动
+
+### 环境要求
+
+- Git、Node.js 26.x、npm 11.x；版本范围见根目录 `package.json`。
+- Docker Desktop，启用 Linux 容器，并等待引擎启动完成。
+- 仅使用 Docker 演示时，不必另外安装本机 PostgreSQL；本地开发、隔离测试或双库模式另需按文档准备 PostgreSQL 18。
+
+以下示例使用 Windows PowerShell；`npm.cmd` 可避免 `npm.ps1` 执行策略问题。首次获取项目：
+
+```powershell
+git clone https://github.com/py678/ecommerce-product-system.git
+Set-Location .\ecommerce-product-system
+git config core.hooksPath .githooks
+npm.cmd ci
+node scripts/setup-compose.ts
+docker compose up -d --build --wait
+docker compose ps -a
+```
+
+`setup-compose.ts` 仅在根目录 `.env` 不存在时生成随机配置；已存在则保留，不会覆盖已有密码。新数据库启动时自动执行初始化和迁移；`migrate` 是一次性任务，成功后显示 `Exited (0)` 属于正常情况。
+
+| 服务         | Docker 访问地址                                                    |
+| ------------ | ------------------------------------------------------------------ |
+| 管理后台     | [http://localhost:8088](http://localhost:8088)                     |
+| Swagger      | [http://localhost:8088/docs](http://localhost:8088/docs)           |
+| OpenAPI JSON | [http://localhost:8088/docs-json](http://localhost:8088/docs-json) |
+
+首次使用自行注册运营账号；由维护者按上文方式配置或引导管理员。建议管理员先创建分类，再创建商品。项目不在 README 提供默认账号密码。
+
+### 已配置双库的当前工作站
+
+以下命令只用于已经配置 `.env.sync.local`、完成主副本初始化和切换的环境，**不能代替首次双库初始化**：
+
+```powershell
+Set-Location "D:\考核项目"
+docker compose -f docker-compose.yml -f docker-compose.sync.yml --profile sync up -d --build --wait
+docker compose -f docker-compose.yml -f docker-compose.sync.yml --profile sync ps -a
+```
+
+更新代码后重新构建镜像，浏览器重新加载以获取新版静态资源。普通启动不会重置数据库，也不需要反复执行主副本切换脚本。
+
+停止双库容器服务：
+
+```powershell
+docker compose -f docker-compose.yml -f docker-compose.sync.yml --profile sync stop
+```
+
+停止容器不等于停止 Windows 上的 PostgreSQL 服务或手动运行的 npm 开发进程。**不要使用 `docker compose down -v`，它会删除数据库数据卷。**
+
+## 本地开发
+
+依赖由 npm workspaces 统一管理，只在根目录执行 `npm.cmd ci`，不在 backend/frontend 新增锁文件。
+
+### 保留 Docker 后端，只开发前端
+
+先启动上文 Docker 服务，再执行：
+
+```powershell
+npm.cmd run dev --workspace frontend
+```
+
+访问 [http://localhost:5173](http://localhost:5173)，默认将 API、图片和 Socket.IO 请求代理到 Docker 的 8088。双库业务模式建议采用此方式开发前端。
+
+### 独立前后端开发
+
+先按 [数据库文档](docs/database.md) 准备独立开发库，根据 `backend/.env.example` 配置被忽略的 `backend/.env`，不要连接业务只读副本来测试商品/订单写入。
+
+终端一，在仓库根目录执行：
+
+```powershell
+npm.cmd run db:generate --workspace backend
+npm.cmd run db:validate --workspace backend
+npm.cmd run db:deploy --workspace backend
+npm.cmd run dev --workspace backend
+```
+
+终端二，在仓库根目录执行：
+
+```powershell
+$env:DEV_API_TARGET = "http://127.0.0.1:3000"
+npm.cmd run dev --workspace frontend
+```
+
+独立后端 Swagger 为 [http://localhost:3000/docs](http://localhost:3000/docs)。后端还需配置匹配的前端来源，详见 [本地启动指南](docs/local-start.md)。
+
+根目录 `npm.cmd run dev` 可以同时编排两个开发服务，但仍需先设置正确的代理目标与数据库配置，不会自动迁移、指定管理员或部署 Docker。
+
+## 数据库与双库同步
+
+| 数据                           | Docker PostgreSQL       | 本机 PostgreSQL                 |
+| ------------------------------ | ----------------------- | ------------------------------- |
+| 商品、订单、订单明细、订单日志 | PRIMARY，唯一业务写入源 | REPLICA，只接收复制，不直接写入 |
+| 用户、分类                     | 继续双向同步            | 继续双向同步                    |
+
+- 复制按源事务整体应用，不在副本重新执行扣减/回补库存逻辑。
+- 双库是异步同步，不能理解为两个库之间的实时强一致事务。Prisma Studio 查看前需等待同步并刷新表格。
+- 业务入口使用 Docker 主服务；对副本写商品/订单会被应用和数据库保护拒绝。
+- 首次配置或历史双向版本升级，必须先备份两库、排空旧队列、核对一致性，再按 [部署指南](docs/deployment.md) 切换，不要自行跳步。
+- Prisma 迁移必须先以 `--create-only` 生成并审查 SQL，再验证和部署；禁止 `prisma migrate reset`，不得删除已有业务数据解决迁移问题。
+- 真实密码、JWT 密钥、公司内部 ID 只保存在被忽略的环境配置中，不写入 README、截图或提交记录。
+
+## 测试与质量检查
+
+以下命令均在根目录执行：
+
+| 命令                        | 用途                                                                 |
+| --------------------------- | -------------------------------------------------------------------- |
+| `npm.cmd run lint`          | 检查前后端代码规范                                                   |
+| `npm.cmd run format:check`  | 检查现有脚本配置范围内的格式                                         |
+| `npm.cmd run build`         | 构建前后端并执行类型检查；先生成 Prisma Client                       |
+| `npm.cmd test`              | 在随机隔离 schema 中验证迁移、数据库和全部后端测试                   |
+| `npm.cmd run test:orders`   | 构建两端，执行隔离数据库、全部后端和 Edge 浏览器回归；不只是订单测试 |
+| `npm.cmd run db:verify`     | 隔离数据库迁移和约束验证                                             |
+| `npm.cmd run test:realtime` | 实时通知专项验证                                                     |
+
+测试前需配置 `backend/.env` 数据库连接及临时 schema 创建权限；浏览器回归需要本机 Edge。双库专项还需要两套隔离数据库，命令与准备步骤见 [订单规格](docs/orders.md)。
+
+不要将原始测试脚本直接连接业务 public 表。统一隔离脚本创建随机测试 schema，并在结束后仅清理自身 schema；默认浏览器测试为无头运行。测试结果以本次实际输出为准，不将历史通过数量当作当前结果。
+
+| 位置                                              | 主要测试内容                                                             |
+| ------------------------------------------------- | ------------------------------------------------------------------------ |
+| `backend/test/`                                   | 登录认证、CRUD、DTO 校验、权限、个人中心、上传、筛选、实时连接及订单流程 |
+| `backend/scripts/database.integration.test.ts`    | 实际 PostgreSQL 结构与约束                                               |
+| `backend/scripts/orders-sync.integration.test.ts` | 主副本库存、整事务复制、失败回滚和重复重放                               |
+| `frontend/e2e/`                                   | 页面流程、筛选 URL、权限展示、个人中心、实时刷新和订单操作               |
+
+Turborepo 仅使用本地构建缓存；数据库、浏览器和测试任务禁用缓存。详见 [工具链说明](docs/tooling.md)。
+
+## 接口文档与同事验收
+
+Swagger 页面先调用 `/api/auth/login`，复制响应中的 `accessToken`，点击右上角 **Authorize** 粘贴 Token，再执行受保护接口。界面按模块分组，请以生成的 Swagger 为最新接口契约。
+
+建议同事首次验收按以下顺序进行：
+
+1. 注册运营账号，确认能查看商品但不能维护分类；准备一个管理员账号。
+2. 管理员创建演示分类，创建商品，检查详情、编辑、封面和筛选排序。
+3. 删除一个没有任何订单引用的演示商品，验证完整 CRUD。
+4. 运营人员与管理员分别登录，检查商品写权限和订单可见范围。
+5. 用另一商品演示订单：库存 5，录单 2 后为 3，取消后恢复 5；已发货不能取消。
+6. 用两个独立浏览器会话打开商品页，修改商品后观察自动刷新；订单事件仅创建人和管理员可见。
+7. 最后演示改密，确认旧会话失效，避免演示中途退出影响其他操作。
+
+## 目录结构与技术栈
+
+```text
+backend/
+  src/                 NestJS 认证、商品、分类、订单、用户、管理员、上传和实时模块
+  prisma/              数据模型和版本化迁移
+  test/                后端单元与接口测试
+  scripts/             隔离验证、管理员引导及数据库同步工具
+frontend/
+  src/                 React 页面、组件、请求封装、认证和实时连接
+  e2e/                 Playwright 浏览器测试
+  nginx.conf           页面回退、API、图片及 WebSocket 代理
+docs/                  业务规格、架构、API、数据库和部署文档
+.agents/skills/        项目开发技能
+.githooks/             Conventional Commits 提交校验
+scripts/               仓库级初始化工具
+docker-compose.yml     基础容器服务
+docker-compose.sync.yml 可选双库同步服务
+turbo.json             构建任务图与本地缓存配置
+```
+
+后端：NestJS、TypeScript、Prisma、PostgreSQL、JWT、BCrypt、class-validator、Swagger、Socket.IO。前端：React、Vite、TypeScript、Ant Design、React Router、Axios、Socket.IO Client。工程化：npm workspaces、Turborepo、ESLint、Prettier、Vitest、Playwright、Docker Compose。
+
+## 常见问题
+
+| 现象                         | 原因或处理方式                                                                                             |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| 后台或 Swagger 打不开        | 确认 Docker Desktop 引擎已启动，再检查 `docker compose ps -a`；Docker 入口为 8088，独立开发后端才使用 3000 |
+| 改完代码页面没变化           | Docker 不会自动读取源码；重建前端镜像后重新加载页面                                                        |
+| 商品显示删除失败             | 检查是否被任何订单引用；订单结束不解除商品引用                                                             |
+| 分类删除按钮不可用           | 分类下仍有商品，先调整商品分类                                                                             |
+| 修改库存返回 409             | 读取后库存已变化，重新打开商品表单后操作                                                                   |
+| 本机数据库看不到刚创建的数据 | 确认同步服务运行，等待异步复制，并刷新 Studio；检查当前连接的数据库                                        |
+| 本机接口修改商品返回 503     | 当前连接 REPLICA，只能通过 Docker 主服务写商品/订单                                                        |
+| 改密或改角色后跳回登录页     | 旧凭证已失效，使用正确账号角色与密码重新登录                                                               |
+| 无法注册管理员               | 维护者未配置内部 ID，或输入不匹配；不要把内部 ID 硬编码到前端                                              |
+
+查看日志时只选所需服务，例如 `docker compose logs --tail 100 frontend`。完整环境展开、容器配置或某些错误日志可能含私密信息，分享前先脱敏。
+
+## 详细文档
+
+| 文档                                   | 内容                                 |
+| -------------------------------------- | ------------------------------------ |
+| [架构说明](docs/architecture.md)       | 模块边界、认证、数据与事件流         |
+| [API 使用说明](docs/api.md)            | 接口调用、认证及响应规则             |
+| [数据库设计与 ER 图](docs/database.md) | 表关系、约束、初始化与迁移           |
+| [Docker 部署](docs/deployment.md)      | 容器启动、升级、双库切换、备份及排错 |
+| [本地启动](docs/local-start.md)        | Windows、独立后端和前端联调          |
+| [角色权限](docs/rbac.md)               | 权限矩阵、首次管理员、角色变更       |
+| [个人中心](docs/personal-center.md)    | 资料与改密、旧凭证失效               |
+| [商品图片](docs/product-images.md)     | 上传契约、存储和部署                 |
+| [商品筛选](docs/product-filters.md)    | 参数、兼容规则与排序                 |
+| [实时通知](docs/realtime.md)           | 事件、连接、重连与双窗口验证         |
+| [订单规格](docs/orders.md)             | 状态、库存、幂等、权限及双库验收     |
+| [工具链](docs/tooling.md)              | workspace、Turbo、测试及缓存         |
+
+## 开发协作约定
+
+- 全局约定见 [AGENTS.md](AGENTS.md)，按任务使用 [.agents/skills/](.agents/skills/)。
+- 每个开发日提交并推送有效变更；提交遵循 Conventional Commits，正文记录原因、变更与实际验证。
+- 新克隆后设置 `git config core.hooksPath .githooks`；只维护根目录 `package-lock.json`。
+- 密码、令牌、依赖目录、生成代码、构建产物和安装包不提交。
+- 首次成功推送后，按团队要求将仓库地址提供给周勇（Leo.Zhou）与黄锐（Bruce.Huang）。
+- 当前运行方式主要用于本地考核与内部演示；对外生产部署还需补齐 HTTPS、监控告警、备份恢复和容量验证。商品归档、完整编辑冲突保护、分类治理及业务审计仍是待讨论的改进，不应当作已实现功能。

@@ -592,6 +592,11 @@ p {
 }
 
 /* Product filters wrap without changing category list layout. */
+.product-list-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  align-items: start;
+}
 .product-list-filters {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -599,10 +604,12 @@ p {
   flex: 1;
   min-width: 0;
 }
-.product-list-filters .ant-form-item {
+.product-list-filters .ant-form-item,
+.product-filter-refresh.ant-form-item {
   margin-bottom: 0;
 }
-.product-list-filters .ant-form-item-row {
+.product-list-filters .ant-form-item-row,
+.product-filter-refresh .ant-form-item-row {
   display: block;
 }
 .product-list-filters .ant-form-item-label {

@@ -1,6 +1,16 @@
 import { useRealtimeRefresh } from '../realtime/useRealtimeRefresh';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { App, Button, Card, Empty, Popconfirm, Space, Table, Tag } from 'antd';
+import {
+  App,
+  Button,
+  Card,
+  Empty,
+  Form,
+  Popconfirm,
+  Space,
+  Table,
+  Tag,
+} from 'antd';
 import type { TableColumnsType } from 'antd';
 import {
   AppstoreOutlined,
@@ -232,19 +242,25 @@ export function ProductsPage() {
         )}
       </div>
       <Card className="catalog-card">
-        <div className="list-toolbar">
+        <div className="list-toolbar product-list-toolbar">
           <ProductListFilters
             query={query}
             onChange={(patch) => setQuery({ ...query, ...patch, page: 1 })}
           />
-          <Button
-            aria-label="刷新"
-            icon={<ReloadOutlined />}
-            onClick={refresh}
-            loading={loading}
+          <Form.Item
+            className="product-filter-refresh"
+            label={<span aria-hidden="true">&nbsp;</span>}
+            colon={false}
           >
-            刷新
-          </Button>
+            <Button
+              aria-label="刷新"
+              icon={<ReloadOutlined />}
+              onClick={refresh}
+              loading={loading}
+            >
+              刷新
+            </Button>
+          </Form.Item>
         </div>
         {error && <RequestError error={error} retry={refresh} />}
         <div className="list-summary">
