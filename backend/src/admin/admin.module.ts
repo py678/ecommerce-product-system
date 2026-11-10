@@ -4,9 +4,10 @@ import { DatabaseModule } from '../database/database.module.js';
 import { AuthModule } from '../auth/auth.module.js';
 import { AdminUsersController } from './admin-users.controller.js';
 import { AdminUsersService } from './admin-users.service.js';
+import { AccountLifecycleService } from './account-lifecycle.service.js';
 @Module({
   imports: [RealtimeModule, DatabaseModule, AuthModule],
   controllers: [AdminUsersController],
-  providers: [AdminUsersService],
+  providers: [AdminUsersService, AccountLifecycleService],
 })
 export class AdminModule {}

@@ -32,10 +32,10 @@
 - 分类：category:read/create/update/delete，全局共享，固定 ALL。
 - 订单：order:read/create/confirm/ship/complete/cancel；除 create 外均可配置 OWN/ALL。
 - 上传：upload:image，固定 ALL。
-- 账号：user:read、user:assign-role，固定 ALL。
+- 账号：user:read、user:assign-role、user:delete、user:restore、user:purge，固定 ALL。硬删除额外要求系统 ADMIN 身份，单独授予 user:purge 不会使自定义角色获得硬删除能力。
 - 角色：role:read/create/update/delete，固定 ALL。
 
-权限目录共 21 项，由代码和迁移维护，不支持通过前端增加任意权限字符串。写操作必须同时授予对应资源的 read；创建商品需要 category:read，创建订单需要 product:read；ALL 写入需要同资源 ALL 读取。选错组合返回 400，不会自动扩大权限。
+权限目录共 24 项，由代码和迁移维护，不支持通过前端增加任意权限字符串。写操作必须同时授予对应资源的 read；创建商品需要 category:read，创建订单需要 product:read；ALL 写入需要同资源 ALL 读取。选错组合返回 400，不会自动扩大权限。
 
 ## 后端安全边界
 

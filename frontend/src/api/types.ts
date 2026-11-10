@@ -17,16 +17,30 @@ export type Permission =
   | 'upload:image'
   | 'user:read'
   | 'user:assign-role'
+  | 'user:delete'
+  | 'user:restore'
+  | 'user:purge'
   | 'role:read'
   | 'role:create'
   | 'role:update'
   | 'role:delete';
 export interface AdminUserQuery {
+  status?: 'active' | 'deleted';
   page: number;
   pageSize: number;
   search?: string;
   role?: string;
   roleId?: string;
+}
+export interface AdminUser extends User {
+  deletedAt: string | null;
+  deletedBy: string | null;
+  deleteReason: string | null;
+}
+export interface AccountDependencies {
+  productCount: number;
+  orderCount: number;
+  canPurge: boolean;
 }
 export interface User {
   id: string;

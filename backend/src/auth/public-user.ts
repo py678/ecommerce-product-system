@@ -7,6 +7,7 @@ export const PUBLIC_USER_SELECT = {
   email: true,
   role: true,
   roleId: true,
+  deletedAt: true,
   createdAt: true,
   updatedAt: true,
   roleDefinition: { include: { grants: true } },

@@ -12,10 +12,15 @@ import {
   Space,
   Table,
   Tag,
+  Tabs,
 } from 'antd';
 import type { TableColumnsType } from 'antd';
 import { api, errorMessage } from '../api/client';
-import type { AdminUserQuery, User, RoleOption } from '../api/types';
+import type { AdminUserQuery, User, AdminUser, RoleOption } from '../api/types';
+import {
+  AccountActionModal,
+  type AccountAction,
+} from '../components/AccountActionModal';
 import { useAuth } from '../auth/useAuth';
 import { can, roleLabel } from '../auth/permissions';
 import { RequestError } from '../components/PageFeedback';
@@ -100,6 +105,10 @@ export function AdminUsersPage() {
   const [query, setQuery] = useState<AdminUserQuery>({ page: 1, pageSize: 20 });
   const [search, setSearch] = useState('');
   const [target, setTarget] = useState<User | null>(null);
+  const [accountAction, setAccountAction] = useState<{
+    target: AdminUser;
+    action: AccountAction;
+  } | null>(null);
   const load = useCallback(
     (signal: AbortSignal) => api.adminUsers.list(query, signal),
     [query],
@@ -115,7 +124,7 @@ export function AdminUsersPage() {
     error: rolesError,
     refresh: refreshRoles,
   } = useResource(loadRoles);
-  const columns: TableColumnsType<User> = [
+  const columns: TableColumnsType<AdminUser> = [
     { title: '用户名', dataIndex: 'username' },
     { title: '邮箱', dataIndex: 'email' },
     {
@@ -141,18 +150,67 @@ export function AdminUsersPage() {
       render: (value: string) => formatTime(value),
     },
     {
+      title: '删除时间 / 原因',
+      key: 'deleted',
+      hidden: query.status !== 'deleted',
+      render: (_value, item) => (
+        <>
+          <div>{item.deletedAt ? formatTime(item.deletedAt) : '—'}</div>
+          <div>{item.deleteReason}</div>
+        </>
+      ),
+    },
+    {
       title: '操作',
       key: 'actions',
-      render: (_value, item) =>
-        can(user, 'user:assign-role') && (
-          <Button
-            type="link"
-            disabled={item.id === user?.id}
-            onClick={() => setTarget(item)}
-          >
-            {item.id === user?.id ? '当前账号' : '调整角色'}
-          </Button>
-        ),
+      render: (_value, item) => (
+        <Space wrap>
+          {query.status !== 'deleted' && can(user, 'user:assign-role') && (
+            <Button
+              type="link"
+              disabled={item.id === user?.id}
+              onClick={() => setTarget(item)}
+            >
+              {item.id === user?.id ? '当前账号' : '调整角色'}
+            </Button>
+          )}
+          {query.status !== 'deleted' && can(user, 'user:delete') && (
+            <Button
+              type="link"
+              danger
+              disabled={item.id === user?.id}
+              onClick={() =>
+                setAccountAction({ target: item, action: 'delete' })
+              }
+            >
+              软删除
+            </Button>
+          )}
+          {query.status === 'deleted' && can(user, 'user:restore') && (
+            <Button
+              type="link"
+              onClick={() =>
+                setAccountAction({ target: item, action: 'restore' })
+              }
+            >
+              恢复
+            </Button>
+          )}
+          {query.status === 'deleted' &&
+            user?.role === 'ADMIN' &&
+            can(user, 'user:purge') && (
+              <Button
+                type="link"
+                danger
+                onClick={() =>
+                  setAccountAction({ target: item, action: 'purge' })
+                }
+              >
+                彻底删除
+              </Button>
+            )}
+        </Space>
+      ),
     },
   ];
   return (
@@ -160,10 +218,24 @@ export function AdminUsersPage() {
       <div className="page-heading">
         <div>
           <h1>账号管理</h1>
-          <p>将账号分配到已定义的角色，变更后该账号需要重新登录。</p>
+          <p>分配角色、停用和恢复账号；有商品或订单的账号保留在回收站。</p>
         </div>
       </div>
       <Card className="catalog-card">
+        <Tabs
+          activeKey={query.status ?? 'active'}
+          items={[
+            { key: 'active', label: '正常账号' },
+            { key: 'deleted', label: '回收站' },
+          ]}
+          onChange={(status) =>
+            setQuery({
+              ...query,
+              page: 1,
+              status: status as 'active' | 'deleted',
+            })
+          }
+        />
         <Space wrap style={{ marginBottom: 20 }}>
           <Input.Search
             aria-label="搜索账号"
@@ -196,7 +268,7 @@ export function AdminUsersPage() {
         </Space>
         {rolesError && <RequestError error={rolesError} retry={refreshRoles} />}
         {error && <RequestError error={error} retry={refresh} />}
-        <Table<User>
+        <Table<AdminUser>
           rowKey="id"
           columns={columns}
           dataSource={error ? [] : (data?.items ?? [])}
@@ -218,6 +290,18 @@ export function AdminUsersPage() {
           }}
         />
       </Card>
+      {accountAction && (
+        <AccountActionModal
+          target={accountAction.target}
+          action={accountAction.action}
+          onCancel={() => setAccountAction(null)}
+          onSaved={() => {
+            setAccountAction(null);
+            setQuery((q) => ({ ...q, page: 1 }));
+            refresh();
+          }}
+        />
+      )}
       {target && (
         <RoleModal
           target={target}

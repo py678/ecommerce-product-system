@@ -36,6 +36,9 @@ model User {
   roleId       String    @default(dbgenerated("'00000000-0000-4000-8000-000000000011'::uuid")) @map("role_id") @db.Uuid
   roleDefinition Role @relation(fields: [roleId], references: [id], onDelete: Restrict)
   tokenVersion Int       @default(0) @map("token_version")
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  deletedBy String? @map("deleted_by") @db.Uuid
+  deleteReason String? @map("delete_reason") @db.VarChar(500)
   createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt    DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
   products     Product[]
@@ -43,6 +46,26 @@ model User {
 
   @@map("users")
   @@index([roleId])
+  @@index([deletedAt, createdAt])
+}
+
+// No user FK: deletion history and permanent UUID tombstones survive a purge.
+model AccountAudit {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  actorId String @map("actor_id") @db.Uuid
+  targetId String @map("target_id") @db.Uuid
+  username String @db.VarChar(64)
+  action String @db.VarChar(24)
+  reason String @db.VarChar(500)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  @@index([targetId, createdAt])
+  @@map("account_audits")
+}
+
+model UserTombstone {
+  id String @id @db.Uuid
+  purgedAt DateTime @default(now()) @map("purged_at") @db.Timestamptz(3)
+  @@map("user_tombstones")
 }
 
 enum DataScope {

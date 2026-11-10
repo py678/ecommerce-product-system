@@ -160,6 +160,30 @@ erDiagram
 
 ## 可配置 RBAC 结构
 
-20261110023925_configurable_rbac 新增 users.role_id 外键并建立索引，指向 roles，删除使用 RESTRICT；legacy role 由数据库触发器保持兼容，不能用它判断自定义角色权限。roles.code 唯一且限制格式；role_permissions 的 (role_id, permission_code) 唯一，范围为 OWN/ALL。permissions 为 21 项固定目录。permission_audits 不设角色外键，角色删除后仍保留前后快照；RoleAudit 历史编码扩为 VARCHAR(32)。
+20261110023925_configurable_rbac 新增 users.role_id 外键并建立索引，指向 roles，删除使用 RESTRICT；legacy role 由数据库触发器保持兼容，不能用它判断自定义角色权限。roles.code 唯一且限制格式；role_permissions 的 (role_id, permission_code) 唯一，范围为 OWN/ALL。permissions 初始为 21 项，账号生命周期迁移扩至 24 项固定目录。permission_audits 不设角色外键，角色删除后仍保留前后快照；RoleAudit 历史编码扩为 VARCHAR(32)。
 
 迁移按原 ADMIN/OPERATOR 回填确定的角色 ID，现有 tokenVersion 加一；不删除业务数据。两库种子 ID/时间一致。角色、权限关联启用同步捕获和 TRUNCATE 保护，副本禁止配置写入；主库角色分配不能被副本旧资料事件覆盖。角色审计留在源库。详见 [RBAC](rbac.md)。
+
+## 账号生命周期结构
+
+迁移 `20261110070741_account_lifecycle` 新增 users.deleted_at（可空时间）、deleted_by（可空 UUID 快照）、delete_reason（可空 VARCHAR(500)），及 (deleted_at,created_at) 索引。不改用户名/邮箱唯一约束，原记录初始化为正常。
+
+- account_audits：UUID 主键、actor_id/target_id UUID 快照、username VARCHAR(64)、action VARCHAR(24)、reason VARCHAR(500)、created_at；索引 (target_id,created_at)。无用户外键，账号硬删除后审计仍保留，仅源库保存。
+- user_tombstones：永久用户 UUID 主键、purged_at；不存邮箱或凭据。禁止更新/删除/截断，按主库事务同步；任何后续原 UUID 插入拒绝。
+- users 保持 products/orders 的 RESTRICT 外键，软删除不触发级联；硬删除应用再次检查所有业务关联。
+- 生命周期写入只允许主库，主库状态通过 `_sync_versions` 中 `user_lifecycle` 独立版本键复制，不受副本资料时钟影响；墓碑阻止任意延迟 UPSERT 复活。该版本键是内部元数据，无对应业务表。
+
+```mermaid
+erDiagram
+  users ||--o{ products : owns
+  users ||--o{ orders : creates
+  account_audits {
+    uuid target_id "无外键，删除后保留"
+    string action
+    string reason
+  }
+  user_tombstones {
+    uuid id "已永久删除账号的UUID"
+    datetime purged_at
+  }
+```

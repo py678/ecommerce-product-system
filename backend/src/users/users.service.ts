@@ -31,7 +31,7 @@ export class UsersService {
     try {
       return publicUser(
         await this.db.user.update({
-          where: { id },
+          where: { id, deletedAt: null },
           data: { email: dto.email },
           select: PUBLIC_USER_SELECT,
         }),
@@ -51,7 +51,7 @@ export class UsersService {
     dto: ChangePasswordDto,
   ): Promise<{ message: string }> {
     const user = await this.db.user.findUnique({
-      where: { id },
+      where: { id, deletedAt: null },
       select: { passwordHash: true, tokenVersion: true },
     });
     if (!user) throw new UnauthorizedException('登录状态无效，请重新登录');
@@ -68,6 +68,7 @@ export class UsersService {
       const result = await tx.user.updateMany({
         where: {
           id,
+          deletedAt: null,
           passwordHash: user.passwordHash,
           tokenVersion: user.tokenVersion,
         },

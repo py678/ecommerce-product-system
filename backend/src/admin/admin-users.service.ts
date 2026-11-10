@@ -27,6 +27,7 @@ export class AdminUsersService {
   ) {}
   async list(query: AdminUserQueryDto): Promise<AdminUserPageDto> {
     const where: Prisma.UserWhereInput = {
+      deletedAt: query.status === 'deleted' ? { not: null } : null,
       roleId: query.roleId,
       ...(query.role ? { roleDefinition: { code: query.role } } : {}),
       ...(query.search
@@ -42,7 +43,11 @@ export class AdminUsersService {
       [
         this.db.user.findMany({
           where,
-          select: PUBLIC_USER_SELECT,
+          select: {
+            ...PUBLIC_USER_SELECT,
+            deletedBy: true,
+            deleteReason: true,
+          },
           orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
           skip: (query.page - 1) * query.pageSize,
           take: query.pageSize,
@@ -52,7 +57,12 @@ export class AdminUsersService {
       { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
     );
     return {
-      items: users.map(publicUser),
+      items: users.map((u) => ({
+        ...publicUser(u),
+        deletedAt: u.deletedAt,
+        deletedBy: u.deletedBy,
+        deleteReason: u.deleteReason,
+      })),
       total,
       page: query.page,
       pageSize: query.pageSize,
@@ -69,7 +79,7 @@ export class AdminUsersService {
     const updated = await this.db.$transaction(async (tx) => {
       const current = await lockRoleAuthority(tx, actor, 'user:assign-role');
       const target = await tx.user.findUnique({
-        where: { id },
+        where: { id, deletedAt: null },
         select: PUBLIC_USER_SELECT,
       });
       if (!target) throw new NotFoundException('账号不存在');
@@ -100,7 +110,10 @@ export class AdminUsersService {
       if (
         target.roleDefinition.code === 'ADMIN' &&
         (await tx.user.count({
-          where: { roleDefinition: { code: 'ADMIN', enabled: true } },
+          where: {
+            deletedAt: null,
+            roleDefinition: { code: 'ADMIN', enabled: true },
+          },
         })) <= 1
       )
         throw new ConflictException('不能降级最后一个管理员');

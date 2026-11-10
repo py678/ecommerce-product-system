@@ -8,12 +8,19 @@ const db = new DatabaseService();
 try {
   await db.$transaction(async (tx) => {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(73510943)`;
-    if (await tx.user.count({ where: { role: 'ADMIN' } }))
+    if (
+      await tx.user.count({
+        where: {
+          deletedAt: null,
+          roleDefinition: { code: 'ADMIN', enabled: true },
+        },
+      })
+    )
       throw new Error(
         'Administrator already exists; use the account management API.',
       );
     const user = await tx.user.findUnique({
-      where: { username },
+      where: { username, deletedAt: null },
       select: { id: true, role: true },
     });
     if (!user)

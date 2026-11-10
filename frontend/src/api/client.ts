@@ -15,6 +15,8 @@ import type {
   AuditPage,
   AuthResponse,
   AdminUserQuery,
+  AdminUser,
+  AccountDependencies,
   UserRole,
   ImageUploadResponse,
   Category,
@@ -126,7 +128,20 @@ export const api = {
   },
   adminUsers: {
     list: async (params: AdminUserQuery, signal?: AbortSignal) =>
-      (await http.get<Page<User>>('/admin/users', { params, signal })).data,
+      (await http.get<Page<AdminUser>>('/admin/users', { params, signal }))
+        .data,
+    dependencies: async (id: string, signal?: AbortSignal) =>
+      (
+        await http.get<AccountDependencies>(`/admin/users/${id}/dependencies`, {
+          signal,
+        })
+      ).data,
+    remove: async (id: string, reason: string) =>
+      (await http.delete(`/admin/users/${id}`, { data: { reason } })).data,
+    restore: async (id: string, reason: string) =>
+      (await http.post(`/admin/users/${id}/restore`, { reason })).data,
+    purge: async (id: string, input: { username: string; reason: string }) =>
+      (await http.delete(`/admin/users/${id}/purge`, { data: input })).data,
     assignRole: async (id: string, roleId: string) =>
       (await http.patch<User>(`/admin/users/${id}/role`, { roleId })).data,
   },

@@ -53,7 +53,7 @@ export async function lockRoleAuthority(
     where: { id: actor.id },
     select: PUBLIC_USER_SELECT,
   });
-  if (!row?.roleDefinition.enabled)
+  if (!row?.roleDefinition.enabled || row.deletedAt)
     throw new ForbiddenException('没有执行此操作的权限');
   const current = publicUser(row);
   if (!current.permissions.includes(permission))

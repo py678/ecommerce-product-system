@@ -9,10 +9,14 @@ const columns = {
     'token_version',
     'role',
     'role_id',
+    'deleted_at',
+    'deleted_by',
+    'delete_reason',
     'created_at',
     'updated_at',
   ],
   categories: ['id', 'name', 'created_at', 'updated_at'],
+  user_tombstones: ['id', 'purged_at'],
   roles: [
     'id',
     'code',
@@ -107,6 +111,80 @@ async function applyInTransaction(
     `SELECT id FROM "${change.table_name}" WHERE id = $1 FOR UPDATE`,
     [change.record_id],
   );
+  if (change.table_name === 'users') {
+    // A purge is permanent: acknowledge late events without re-creating the UUID or blocking the queue.
+    if (
+      (
+        await target.query('SELECT id FROM user_tombstones WHERE id=$1', [
+          change.record_id,
+        ])
+      ).rowCount
+    ) {
+      if (change.operation === 'DELETE')
+        await target.query('DELETE FROM users WHERE id=$1', [change.record_id]);
+      return false;
+    }
+    if ((await commerceRole(target)) === 'PRIMARY') {
+      // REPLICA is never authoritative for lifecycle. Ignore profile writes for deleted accounts too.
+      if (
+        change.operation === 'DELETE' ||
+        (
+          await target.query(
+            'SELECT id FROM users WHERE id=$1 AND deleted_at IS NOT NULL',
+            [change.record_id],
+          )
+        ).rowCount
+      )
+        return false;
+    }
+  }
+  let lifecycleApplied = false;
+  if (
+    change.table_name === 'users' &&
+    change.operation === 'UPSERT' &&
+    (await commerceRole(target)) === 'REPLICA'
+  ) {
+    if (!change.row_data || change.row_data.id !== change.record_id)
+      throw new Error('Invalid user change');
+    // A separate PRIMARY clock prevents a later replica email/password event masking deletion/restoration.
+    // Duplicate/older PRIMARY events cannot undo a later restoration.
+    const state = await target.query(
+      `INSERT INTO _sync_versions(table_name,record_id,changed_at,origin_id,event_id)
+      VALUES('user_lifecycle',$1,$2,$3,$4) ON CONFLICT(table_name,record_id) DO UPDATE SET
+      changed_at=EXCLUDED.changed_at,origin_id=EXCLUDED.origin_id,event_id=EXCLUDED.event_id
+      WHERE (_sync_versions.changed_at,_sync_versions.origin_id,_sync_versions.event_id)<(EXCLUDED.changed_at,EXCLUDED.origin_id,EXCLUDED.event_id) RETURNING record_id`,
+      [change.record_id, change.changed_at, change.origin_id, change.event_id],
+    );
+    if (!state.rowCount) return false;
+    await target.query(
+      'UPDATE users SET deleted_at=$2,deleted_by=$3,delete_reason=$4,token_version=GREATEST(token_version,$5) WHERE id=$1',
+      [
+        change.record_id,
+        change.row_data.deleted_at ?? null,
+        change.row_data.deleted_by ?? null,
+        change.row_data.delete_reason ?? null,
+        change.row_data.token_version ?? 0,
+      ],
+    );
+    lifecycleApplied = true;
+  }
+  if (change.table_name === 'user_tombstones') {
+    if ((await commerceRole(target)) === 'PRIMARY')
+      throw new Error('Replica cannot author account tombstones');
+    if (change.operation !== 'UPSERT')
+      throw new Error('Tombstones are permanent');
+    await target.query('SELECT id FROM users WHERE id=$1 FOR UPDATE', [
+      change.record_id,
+    ]);
+    if (
+      (
+        await target.query('SELECT id FROM user_tombstones WHERE id=$1', [
+          change.record_id,
+        ])
+      ).rowCount
+    )
+      return false;
+  }
   const version = await target.query(
     `INSERT INTO _sync_versions (table_name, record_id, changed_at, origin_id, event_id)
        VALUES ($1, $2, $3, $4, $5)
@@ -141,7 +219,12 @@ async function applyInTransaction(
         .filter((field) => field !== 'id')
         .map((field) => {
           // Role assignment is authoritative on PRIMARY, even if a replica profile/password event is newer.
-          if (primaryTarget && (field === 'role_id' || field === 'role'))
+          if (
+            primaryTarget &&
+            (field === 'role_id' ||
+              field === 'role' ||
+              ['deleted_at', 'deleted_by', 'delete_reason'].includes(field))
+          )
             return `"${field}"="users"."${field}"`;
           // An older profile event must never restore a password/role or revive revoked credentials.
           if (change.table_name === 'users' && field === 'token_version')
@@ -192,7 +275,7 @@ async function applyInTransaction(
       );
     }
   }
-  return !!version.rowCount;
+  return !!version.rowCount || lifecycleApplied;
 }
 
 // Replays an entire SOURCE transaction in one target transaction. A replay never executes business stock logic.

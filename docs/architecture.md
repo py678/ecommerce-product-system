@@ -79,4 +79,6 @@ OrdersModule独立组织Controller/DTO/Service；复用JWT、权限Guard、Datab
 
 ## 可配置 RBAC
 
+账号生命周期由 AdminModule 内独立 AccountLifecycleService 承担，与角色调整共用事务权限锁。删除/恢复与 tokenVersion、审计同事务，提交后撤销 Socket；认证及个人资料写入排除已删除账号。硬删除要求系统管理员及权限点，用户行锁与 RESTRICT 外键保护商品/订单，写入永久 UUID 墓碑后删除账号。双库的生命周期状态单主复制，独立主库版本与永久墓碑分别防止资料事件覆盖和已删除 UUID 复活；不改变分类/订单业务逻辑。规格见 [账号生命周期](account-lifecycle.md)。
+
 授权链：JWT → 当前用户/tokenVersion → enabled Role → Permission Guard → 按操作 OWN/ALL 的 Service 条件 → Prisma。列表和 count 共享 where。角色编辑/用户分配经事务锁复核权限，审计与版本递增同事务，提交后断开相关 Socket。权限配置单主写入；业务鉴权拒绝只读副本；同步桥按源事务复制角色、权限和用户版本。详见 [RBAC](rbac.md)。

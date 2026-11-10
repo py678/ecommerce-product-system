@@ -63,7 +63,12 @@ describe('Personal centre validation and password transaction', () => {
     });
     expect(result).toEqual({ message: '密码已修改，请重新登录' });
     const args = write.mock.calls[0][0];
-    expect(args.where).toEqual({ id: 'id', passwordHash, tokenVersion: 2 });
+    expect(args.where).toEqual({
+      id: 'id',
+      deletedAt: null,
+      passwordHash,
+      tokenVersion: 2,
+    });
     expect(args.data.tokenVersion).toEqual({ increment: 1 });
     expect(getRounds(args.data.passwordHash)).toBe(12);
     expect(await compare('Changed-password-456!', args.data.passwordHash)).toBe(

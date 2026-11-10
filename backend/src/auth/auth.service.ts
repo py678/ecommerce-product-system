@@ -77,7 +77,7 @@ export class AuthService {
       dto.password,
       user?.passwordHash ?? (await this.dummyHash),
     );
-    if (!user || !passwordMatches)
+    if (!user || user.deletedAt || !passwordMatches)
       throw new UnauthorizedException('用户名或密码错误');
     if (!user.roleDefinition.enabled)
       throw new UnauthorizedException('账号角色已停用，请联系管理员');
@@ -99,7 +99,11 @@ export class AuthService {
       where: { id },
       select: { ...PUBLIC_USER_SELECT, tokenVersion: true },
     });
-    if (!user) throw new UnauthorizedException('登录状态无效，请重新登录');
+    if (!user || user.deletedAt)
+      throw new UnauthorizedException({
+        message: '账号已停用，请联系管理员',
+        code: 'SESSION_REVOKED',
+      });
     const authority = await this.db.commerceConfig.findUnique({
       where: { id: 1 },
     });

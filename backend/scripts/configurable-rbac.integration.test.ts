@@ -30,7 +30,9 @@ test('configurable roles preserve upgrade data and replicate role/grants/revocat
       await db.query('CREATE SCHEMA "' + schemas[i] + '"');
       await db.query('SET search_path TO "' + schemas[i] + '"');
       await db.query("SET TIME ZONE 'UTC'");
-      for (const migration of migrations.slice(0, -1))
+      for (const migration of migrations.filter(
+        (n) => n < '20261110023925_configurable_rbac',
+      ))
         await db.query(
           await readFile(
             new URL(
@@ -62,7 +64,7 @@ test('configurable roles preserve upgrade data and replicate role/grants/revocat
       await db.query(
         await readFile(
           new URL(
-            '../prisma/migrations/' + migrations.at(-1) + '/migration.sql',
+            '../prisma/migrations/20261110023925_configurable_rbac/migration.sql',
             import.meta.url,
           ),
           'utf8',
@@ -84,6 +86,19 @@ test('configurable roles preserve upgrade data and replicate role/grants/revocat
         [{ name: 'preserved product', price: '19.90', stock: 7 }],
       );
     }
+    for (const db of clients)
+      for (const migration of migrations.filter(
+        (n) => n > '20261110023925_configurable_rbac',
+      ))
+        await db.query(
+          await readFile(
+            new URL(
+              '../prisma/migrations/' + migration + '/migration.sql',
+              import.meta.url,
+            ),
+            'utf8',
+          ),
+        );
     const [a, b] = clients;
     await a.query("UPDATE _commerce_config SET write_role='PRIMARY'");
     await b.query("UPDATE _commerce_config SET write_role='REPLICA'");

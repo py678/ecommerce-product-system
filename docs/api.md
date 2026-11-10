@@ -222,6 +222,22 @@ REST 路由、DTO、权限点及 Swagger 契约保持不变。Socket.IO 使用�
 
 错误：400 非法字段/权限依赖/系统角色保护，401 凭证失效或角色停用，403 缺权限或越级授予，404 角色不存在，409 角色编码/版本/引用冲突，503 副本拒绝写配置和业务认证。用户分配和角色配置都撤销旧凭证，不返回新 token。完整规则见 [RBAC](rbac.md)。
 
+## 账号生命周期
+
+以下路径均含 `/api` 前缀，需 Bearer JWT，DTO 严格拒绝额外字段。新增权限初始仅授予系统管理员。
+
+| 方法 | 路径 | 权限及契约 |
+| --- | --- | --- |
+| GET | /admin/users | user:read；status=active（默认）或 deleted；原搜索、角色、分页参数保留，列表与 total 同条件 |
+| DELETE | /admin/users/:id | user:delete；`{ reason }`，软删除并撤销会话，200 |
+| POST | /admin/users/:id/restore | user:restore；`{ reason }`，恢复原角色、递增凭证版本，200 |
+| GET | /admin/users/:id/dependencies | user:purge 且系统 ADMIN；返回 productCount、orderCount（所有状态）、canPurge；200 |
+| DELETE | /admin/users/:id/purge | user:purge 且系统 ADMIN；`{ username, reason }`，精确确认用户名，目标已删除且无商品/订单，200 |
+
+reason 去除首尾空白后 1–500 字符，禁止填写凭据。账号列表额外返回 deletedAt/deletedBy/deleteReason（正常账号为 null），公开登录/个人资料响应不增加这些内部管理字段。不能自删；重复删除/恢复、最后有效管理员、关联冲突返回 409，确认用户名不匹配及非法字段 400，缺权限或越级操作 403，不存在 404，副本写入 503。
+
+软删除账号不能登录，已有 HTTP/Socket 会话失效；恢复后旧凭证继续失效，角色若已停用仍禁止登录。软删除期间用户名与邮箱仍占用；彻底删除后允许新 UUID 重新注册。事务内记录 account_audits；审计不随账号删除。预检不是删除许可，提交时仍会锁定并复查。详见 [账号生命周期规格](account-lifecycle.md)。
+
 ## 统一登录入口
 
 登录页只提交 username 和 password，管理员、运营人员及自定义角色共用入口。后端根据账号当前 roleId 返回真实角色与权限。POST /auth/login 原可选 loginRole 仅保留旧客户端兼容，新前端不再提交。注册页面仍保留 OPERATOR/ADMIN 选择；管理员注册必须通过私有公司内部 ID 校验，普通注册默认运营人员，其他角色由受控接口分配。

@@ -49,10 +49,10 @@ export class CreateRoleDto {
   description?: string;
   @ApiProperty({
     type: [RoleGrantDto],
-    description: '最多21项，权限不可重复；无权限角色仅可使用个人中心',
+    description: '最多24项，权限不可重复；无权限角色仅可使用个人中心',
   })
   @IsArray()
-  @ArrayMaxSize(21)
+  @ArrayMaxSize(24)
   @ArrayUnique((g: RoleGrantDto) => g.permission)
   @ValidateNested({ each: true })
   @Type(() => RoleGrantDto)
