@@ -24,6 +24,7 @@ import {
 import { useAuth } from '../auth/useAuth';
 import { can, roleLabel } from '../auth/permissions';
 import { RequestError } from '../components/PageFeedback';
+import { ManagementPageHeading } from '../components/ManagementPageHeading';
 import { useResource } from '../hooks/useResource';
 import { formatTime } from '../utils/format';
 function RoleModal({
@@ -215,12 +216,11 @@ export function AdminUsersPage() {
   ];
   return (
     <>
-      <div className="page-heading">
-        <div>
-          <h1>账号管理</h1>
-          <p>分配角色、停用和恢复账号；有商品或订单的账号保留在回收站。</p>
-        </div>
-      </div>
+      <ManagementPageHeading
+        eyebrow="ACCOUNT MANAGEMENT"
+        title="账号管理"
+        description="分配角色、停用和恢复账号；有商品或订单的账号保留在回收站。"
+      />
       <Card className="catalog-card">
         <Tabs
           activeKey={query.status ?? 'active'}

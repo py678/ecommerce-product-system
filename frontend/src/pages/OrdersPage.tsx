@@ -1,14 +1,7 @@
 import { useCallback } from 'react';
-import {
-  Button,
-  Card,
-  Input,
-  Select,
-  Space,
-  Table,
-  Tag,
-  Typography,
-} from 'antd';
+import { Button, Card, Input, Select, Space, Table, Tag } from 'antd';
+import { PlusOutlined } from '@ant-design/icons';
+import { ManagementPageHeading } from '../components/ManagementPageHeading';
 import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../api/client';
 import { useResource } from '../hooks/useResource';
@@ -70,20 +63,21 @@ export function OrdersPage() {
     setParams(p);
   };
   return (
-    <div className="orders-workspace">
-      <div className="page-heading">
-        <div>
-          <Typography.Title level={2}>订单管理</Typography.Title>
-          <Typography.Text type="secondary">
-            代客录单、手动确认与物流跟进；运营人员仅查看自己的订单
-          </Typography.Text>
-        </div>
-        {can(user, 'order:create') && (
-          <Link to="/orders/new">
-            <Button type="primary">创建订单</Button>
-          </Link>
-        )}
-      </div>
+    <div className="orders-workspace orders-list-workspace">
+      <ManagementPageHeading
+        eyebrow="ORDER MANAGEMENT"
+        title="订单管理"
+        description="代客录单、手动确认与物流跟进；运营人员仅查看自己的订单"
+        action={
+          can(user, 'order:create') && (
+            <Link to="/orders/new">
+              <Button type="primary" size="large" icon={<PlusOutlined />}>
+                创建订单
+              </Button>
+            </Link>
+          )
+        }
+      />
       <Card>
         <Space wrap align="end" className="order-filters">
           <Input.Search

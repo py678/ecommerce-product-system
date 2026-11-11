@@ -27,6 +27,7 @@ import { ProductListFilters } from '../components/ProductListFilters';
 import { readProductQuery, productQueryErrors } from './product-list-query';
 import { RequestError } from '../components/PageFeedback';
 import { ProductFormModal } from '../components/ProductFormModal';
+import { ManagementPageHeading } from '../components/ManagementPageHeading';
 import { formatMoney, formatTime } from '../utils/format';
 
 export function ProductsPage() {
@@ -220,27 +221,27 @@ export function ProductsPage() {
 
   return (
     <>
-      <div className="page-heading">
-        <div>
-          <span className="eyebrow">PRODUCT CATALOG</span>
-          <h1>商品管理</h1>
-          <p>
-            {user?.dataScopes?.['product:update'] === 'ALL'
-              ? '查看并管理所有成员的商品。'
-              : '查看全部商品，仅可编辑和删除自己创建的商品。'}
-          </p>
-        </div>
-        {can(user, 'product:create') && (
-          <Button
-            type="primary"
-            size="large"
-            icon={<PlusOutlined />}
-            onClick={() => setModal({})}
-          >
-            新建商品
-          </Button>
-        )}
-      </div>
+      <ManagementPageHeading
+        eyebrow="PRODUCT CATALOG"
+        title="商品管理"
+        description={
+          user?.dataScopes?.['product:update'] === 'ALL'
+            ? '查看并管理所有成员的商品。'
+            : '查看全部商品，仅可编辑和删除自己创建的商品。'
+        }
+        action={
+          can(user, 'product:create') && (
+            <Button
+              type="primary"
+              size="large"
+              icon={<PlusOutlined />}
+              onClick={() => setModal({})}
+            >
+              新建商品
+            </Button>
+          )
+        }
+      />
       <Card className="catalog-card">
         <div className="list-toolbar product-list-toolbar">
           <ProductListFilters

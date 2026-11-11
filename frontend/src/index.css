@@ -646,6 +646,33 @@ p {
   gap: 16px;
   flex-wrap: wrap;
 }
+.orders-workspace.orders-list-workspace {
+  max-width: none;
+  margin: 0;
+  gap: 0;
+}
+.page-heading.management-page-heading {
+  gap: 20px;
+  flex-wrap: nowrap;
+}
+.management-page-heading > div:first-child {
+  min-width: 0;
+}
+.management-page-action {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+.management-page-action > a {
+  display: inline-flex;
+}
+@media (max-width: 767px) {
+  .page-heading.management-page-heading {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 14px;
+  }
+}
 .order-filters {
   margin-bottom: 24px;
 }

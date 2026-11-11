@@ -29,6 +29,7 @@ import { api, errorMessage } from '../api/client';
 import type { Category, ListQuery } from '../api/types';
 import { useResource } from '../hooks/useResource';
 import { RequestError } from '../components/PageFeedback';
+import { ManagementPageHeading } from '../components/ManagementPageHeading';
 import { formatTime, trimInput } from '../utils/format';
 
 function CategoryModal({
@@ -213,23 +214,23 @@ export function CategoriesPage() {
 
   return (
     <>
-      <div className="page-heading">
-        <div>
-          <span className="eyebrow">KEEP THINGS ORGANIZED</span>
-          <h1>分类管理</h1>
-          <p>整理共享分类，让商品更容易被找到。</p>
-        </div>
-        {can(user, 'category:create') && (
-          <Button
-            type="primary"
-            size="large"
-            icon={<PlusOutlined />}
-            onClick={() => setModal({})}
-          >
-            新建分类
-          </Button>
-        )}
-      </div>
+      <ManagementPageHeading
+        eyebrow="KEEP THINGS ORGANIZED"
+        title="分类管理"
+        description="整理共享分类，让商品更容易被找到。"
+        action={
+          can(user, 'category:create') && (
+            <Button
+              type="primary"
+              size="large"
+              icon={<PlusOutlined />}
+              onClick={() => setModal({})}
+            >
+              新建分类
+            </Button>
+          )
+        }
+      />
       <Card className="catalog-card">
         <div className="list-toolbar">
           <Input.Search

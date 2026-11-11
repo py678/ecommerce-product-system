@@ -30,6 +30,8 @@ import { useAuth } from '../auth/useAuth';
 import { can } from '../auth/permissions';
 import { useResource } from '../hooks/useResource';
 import { RequestError } from '../components/PageFeedback';
+import { PlusOutlined } from '@ant-design/icons';
+import { ManagementPageHeading } from '../components/ManagementPageHeading';
 import { formatTime } from '../utils/format';
 
 function RoleEditor({
@@ -339,22 +341,25 @@ export function RolesPage() {
   ];
   return (
     <>
-      <div className="page-heading">
-        <div>
-          <h1>角色管理</h1>
-          <p>先定义角色与权限，再在账号管理中将用户分配到角色。</p>
-        </div>
-        {can(user, 'role:create') && (
-          <Button
-            type="primary"
-            loading={catalogLoading}
-            disabled={!catalog || !!catalogError}
-            onClick={() => setEditor({ target: null })}
-          >
-            新增角色
-          </Button>
-        )}
-      </div>
+      <ManagementPageHeading
+        eyebrow="ROLE MANAGEMENT"
+        title="角色管理"
+        description="先定义角色与权限，再在账号管理中将用户分配到角色。"
+        action={
+          can(user, 'role:create') && (
+            <Button
+              type="primary"
+              size="large"
+              icon={<PlusOutlined />}
+              loading={catalogLoading}
+              disabled={!catalog || !!catalogError}
+              onClick={() => setEditor({ target: null })}
+            >
+              新增角色
+            </Button>
+          )
+        }
+      />
       <Card className="catalog-card">
         <Space wrap style={{ marginBottom: 20 }}>
           <Input.Search
