@@ -1,4 +1,4 @@
-.profile-page {
+﻿.profile-page {
   width: 100%;
   min-width: 0;
 }
@@ -17,32 +17,35 @@
 }
 
 .profile-card > .ant-card-head {
-  min-height: 64px;
-  padding-inline: 24px;
+  min-height: 60px;
+  padding-inline: 32px;
   border-bottom-color: #edf0f2;
 }
 
 .profile-card .ant-card-head-title {
   color: #263b43;
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 650;
 }
 
 .profile-card > .ant-card-body {
-  padding: 24px;
+  display: grid;
+  grid-template-columns: minmax(260px, 0.9fr) minmax(360px, 1.3fr);
+  align-items: start;
+  gap: 36px;
+  padding: 28px 32px 32px;
 }
 
 .profile-form {
   width: 100%;
-  max-width: 640px;
+  max-width: 520px;
 }
 
 .profile-identity {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 16px;
-  margin-bottom: 24px;
-  padding: 20px;
+  padding: 24px;
   background: #f8f9fa;
   border-radius: 12px;
 }
@@ -68,16 +71,16 @@
 
 .profile-times {
   display: flex;
-  flex-wrap: wrap;
-  gap: 4px 8px;
-  margin-top: 6px;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 12px;
   color: #7b8790;
   font-size: 13px;
   line-height: 1.6;
 }
 
 .profile-time-divider {
-  color: #c3cbd0;
+  display: none;
 }
 
 .profile-page .ant-form-item {
@@ -97,7 +100,7 @@
 .profile-page .ant-input-outlined,
 .profile-page .ant-input-affix-wrapper-outlined {
   height: 40px;
-  border-color: #bdc8cf;
+  border-color: #cbd5db;
   border-radius: 8px;
 }
 
@@ -134,8 +137,8 @@
 }
 
 .profile-security-notice.ant-alert {
-  margin-bottom: 24px;
-  padding: 12px 14px;
+  margin: 0;
+  padding: 18px 20px;
   background: #f2f7fc;
   border: 1px solid #e8f0f9;
   border-radius: 8px;
@@ -143,38 +146,9 @@
 }
 
 .profile-page .profile-submit {
-  width: 208px;
+  width: 200px;
   max-width: 100%;
   height: 40px;
   border-radius: 8px;
   font-weight: 500;
-}
-
-@media (max-width: 767px) {
-  .profile-card > .ant-card-head {
-    min-height: 58px;
-    padding-inline: 20px;
-  }
-
-  .profile-card > .ant-card-body {
-    padding: 20px;
-  }
-
-  .profile-identity {
-    align-items: flex-start;
-    gap: 12px;
-    padding: 16px;
-  }
-
-  .profile-times {
-    flex-direction: column;
-  }
-
-  .profile-time-divider {
-    display: none;
-  }
-
-  .profile-page .profile-submit {
-    width: 100%;
-  }
 }
