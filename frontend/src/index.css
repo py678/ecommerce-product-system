@@ -213,6 +213,11 @@ p {
 .list-filters .ant-select {
   width: 200px;
 }
+.category-list-toolbar {
+  justify-content: flex-start;
+  align-items: flex-start;
+}
+
 .category-search {
   max-width: 380px;
 }

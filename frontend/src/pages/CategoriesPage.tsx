@@ -232,7 +232,7 @@ export function CategoriesPage() {
         }
       />
       <Card className="catalog-card">
-        <div className="list-toolbar">
+        <div className="list-toolbar category-list-toolbar">
           <Input.Search
             className="category-search"
             aria-label="搜索分类"
