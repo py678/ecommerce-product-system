@@ -7,6 +7,7 @@ import { expireSession } from '../auth/session';
 import { useAuth } from '../auth/useAuth';
 import { useResource } from '../hooks/useResource';
 import { RequestError } from '../components/PageFeedback';
+import { ManagementPageHeading } from '../components/ManagementPageHeading';
 import { formatTime, passwordRules, trimInput } from '../utils/format';
 
 interface PasswordFields {
@@ -70,15 +71,18 @@ export function ProfilePage() {
 
   return (
     <div className="profile-page">
-      <div className="profile-heading">
-        <div>
-          <h1>个人中心</h1>
-          <p>维护个人资料和登录密码</p>
-        </div>
-      </div>
+      <ManagementPageHeading
+        eyebrow="PERSONAL CENTER"
+        title="个人中心"
+        description="维护个人资料和登录密码"
+      />
       {error && <RequestError error={error} retry={refresh} />}
       <div className="profile-cards">
-        <Card className="profile-card" title="个人资料" loading={loading}>
+        <Card
+          className="catalog-card profile-card"
+          title="个人资料"
+          loading={loading}
+        >
           {data && (
             <>
               <div className="profile-identity">
@@ -97,6 +101,7 @@ export function ProfilePage() {
                 </div>
               </div>
               <Form
+                className="profile-form"
                 form={profile}
                 layout="vertical"
                 onFinish={saveProfile}
@@ -126,7 +131,7 @@ export function ProfilePage() {
             </>
           )}
         </Card>
-        <Card className="profile-card" title="安全设置">
+        <Card className="catalog-card profile-card" title="安全设置">
           <Alert
             type="info"
             showIcon
@@ -134,6 +139,7 @@ export function ProfilePage() {
             title="修改成功后，当前及其他所有会话均需重新登录"
           />
           <Form
+            className="profile-form"
             form={password}
             layout="vertical"
             onFinish={changePassword}
