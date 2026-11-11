@@ -1,3 +1,4 @@
+import { ReloadOutlined } from '@ant-design/icons';
 import { useCallback, useRef, useState } from 'react';
 import {
   Alert,
@@ -253,7 +254,13 @@ export function OrderCreatePage() {
               setPage(1);
             }}
           />
-          <Button onClick={resource.refresh}>刷新库存</Button>
+          <Button
+            icon={<ReloadOutlined />}
+            onClick={resource.refresh}
+            loading={resource.loading}
+          >
+            刷新库存
+          </Button>
         </Space>
         {resource.error && (
           <RequestError error={resource.error} retry={resource.refresh} />

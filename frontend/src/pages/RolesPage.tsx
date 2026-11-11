@@ -30,7 +30,7 @@ import { useAuth } from '../auth/useAuth';
 import { can } from '../auth/permissions';
 import { useResource } from '../hooks/useResource';
 import { RequestError } from '../components/PageFeedback';
-import { PlusOutlined } from '@ant-design/icons';
+import { PlusOutlined, ReloadOutlined } from '@ant-design/icons';
 import { ManagementPageHeading } from '../components/ManagementPageHeading';
 import { formatTime } from '../utils/format';
 
@@ -376,7 +376,7 @@ export function RolesPage() {
             enterButton="搜索"
             allowClear
           />
-          <Button onClick={refresh} loading={loading}>
+          <Button icon={<ReloadOutlined />} onClick={refresh} loading={loading}>
             刷新
           </Button>
         </Space>

@@ -1,3 +1,4 @@
+import { ReloadOutlined } from '@ant-design/icons';
 import { useCallback, useState } from 'react';
 import {
   Alert,
@@ -121,7 +122,7 @@ export function OrderDetailPage() {
                 取消订单
               </Button>
             )}
-          <Button onClick={refresh} loading={loading}>
+          <Button icon={<ReloadOutlined />} onClick={refresh} loading={loading}>
             刷新
           </Button>
         </Space>

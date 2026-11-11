@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { Button, Card, Input, Select, Space, Table, Tag } from 'antd';
-import { PlusOutlined } from '@ant-design/icons';
+import { PlusOutlined, ReloadOutlined } from '@ant-design/icons';
 import { ManagementPageHeading } from '../components/ManagementPageHeading';
 import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../api/client';
@@ -133,7 +133,7 @@ export function OrdersPage() {
             />
           </label>
           <Button onClick={() => setParams({})}>重置</Button>
-          <Button onClick={refresh} loading={loading}>
+          <Button icon={<ReloadOutlined />} onClick={refresh} loading={loading}>
             刷新
           </Button>
         </Space>

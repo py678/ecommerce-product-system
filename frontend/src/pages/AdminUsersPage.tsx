@@ -1,3 +1,4 @@
+import { ReloadOutlined } from '@ant-design/icons';
 import { useCallback, useState } from 'react';
 import {
   Alert,
@@ -262,7 +263,7 @@ export function AdminUsersPage() {
               setQuery({ ...query, page: 1, roleId })
             }
           />
-          <Button onClick={refresh} loading={loading}>
+          <Button icon={<ReloadOutlined />} onClick={refresh} loading={loading}>
             刷新
           </Button>
         </Space>
