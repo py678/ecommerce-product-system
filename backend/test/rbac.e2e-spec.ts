@@ -169,10 +169,10 @@ describe.sequential('RBAC and resource scope HTTP API', () => {
   );
   it('allows own writes and administrator writes without transferring ownership', async () => {
     await api('patch', '/api/products/' + productId)
-      .send({ stock: 6, stockVersion: 0 })
+      .send({ stock: 6, stockVersion: 0, stockReason: '本人盘点' })
       .expect(200);
     const r = await api('patch', '/api/products/' + productId, 'admin')
-      .send({ stock: 7, stockVersion: 1 })
+      .send({ stock: 7, stockVersion: 1, stockReason: '管理员盘点' })
       .expect(200);
     expect(r.body.userId).toBe(users.operator.id);
     await api('get', '/api/products/' + productId, 'admin').expect(200);

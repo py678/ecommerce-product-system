@@ -2,7 +2,16 @@ import { useRealtimeEvent } from '../realtime/useRealtimeEvent';
 import { useRealtimeRefresh } from '../realtime/useRealtimeRefresh';
 import axios from 'axios';
 import { useCallback, useState } from 'react';
-import { App, Button, Card, Descriptions, Popconfirm, Space, Tag } from 'antd';
+import {
+  App,
+  Button,
+  Card,
+  Descriptions,
+  Popconfirm,
+  Space,
+  Tag,
+  Tabs,
+} from 'antd';
 import {
   ArrowLeftOutlined,
   DeleteOutlined,
@@ -10,7 +19,8 @@ import {
 } from '@ant-design/icons';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
-import { canManageProduct } from '../auth/permissions';
+import { can, canManageProduct } from '../auth/permissions';
+import { StockMovements } from '../components/StockMovements';
 import { useAuth } from '../auth/useAuth';
 import { useResource } from '../hooks/useResource';
 import { LoadingScreen, RequestError } from '../components/PageFeedback';
@@ -52,7 +62,7 @@ export function ProductDetailPage() {
     }
   });
 
-  if (loading) return <LoadingScreen />;
+  if (loading && !product) return <LoadingScreen />;
   if (error || !product)
     return (
       <>
@@ -183,6 +193,22 @@ export function ProductDetailPage() {
           ]}
         />
       </Card>
+      {can(user, 'stock:read') &&
+        (owned || user?.dataScopes?.['stock:read'] === 'ALL') && (
+          <Card className="detail-card">
+            <Tabs
+              items={[
+                {
+                  key: 'stock',
+                  label: '库存流水',
+                  children: (
+                    <StockMovements key={product.id} productId={product.id} />
+                  ),
+                },
+              ]}
+            />
+          </Card>
+        )}
       {!editable && (
         <p className="muted ownership-note">
           当前账号仅可查看商品，无法编辑或删除。

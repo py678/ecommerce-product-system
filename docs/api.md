@@ -1,5 +1,19 @@
 # API 使用说明
 
+## 库存流水
+
+以下查询均需 JWT 与 `stock:read`，page 默认 1，pageSize 默认 10、最大 100；返回 `{list,total,page,pageSize}`，按 createdAt desc/id desc 排序。OWN 按商品创建者快照过滤，不按操作人；列表和总数共用同一 where。
+
+- `GET /api/stock-movements`：全局受限查询，支持 productId、name、type、createdFrom/createdTo、orderNo。
+- `GET /api/products/:id/stock-movements`：单商品流水，支持 type、时间、订单号及分页。越权与不存在统一 404。
+- `GET /api/orders/:id/stock-movements`：另需 `order:read` 及订单范围，与库存范围取交集。可以读取自己的订单，不代表可以读取他人商品的流水。
+
+type 为 BASELINE / INITIAL / ADJUSTMENT / ORDER_DEDUCT / ORDER_CANCEL。响应包含商品及操作人快照、前后库存、变化量、版本、原因及订单关联；不返回内部 ownerId/operationKey、客户姓名、电话或地址。`canViewOrder` 表示另外满足关联订单的读取范围，前端据此决定是否提供链接。
+
+`PATCH /api/products/:id` 真实变更库存需携带 `stock`、读取时的 `stockVersion` 和 trim 后 1–500 字的 `stockReason`，缺原因 400，版本冲突 409。同库存值不生成流水；仅编辑其他资料不需要原因。前端不得传流水内容、ownerId、actorId 或其他内部字段。没有流水写入、修改或删除接口。
+
+期初只表示功能启用时的库存，不代表历史采购。事务回滚和接口幂等重试不新增流水。完整边界见 [库存流水规格](stock-movements.md)。
+
 基础地址：`http://localhost:3000/api`。
 Swagger 页面：`http://localhost:3000/docs`；OpenAPI JSON：`http://localhost:3000/docs-json`。
 

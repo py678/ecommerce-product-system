@@ -159,7 +159,13 @@ describe.sequential('Image upload and product cover HTTP API', () => {
         .set('Authorization', `Bearer ${token}`)
         .send(body);
     expect(
-      (await patch({ stock: 8, stockVersion: 0 }).expect(200)).body.coverImage,
+      (
+        await patch({
+          stock: 8,
+          stockVersion: 0,
+          stockReason: '上传测试盘点',
+        }).expect(200)
+      ).body.coverImage,
     ).toBe(cover);
     expect(
       (

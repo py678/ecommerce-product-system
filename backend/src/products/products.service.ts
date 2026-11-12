@@ -1,4 +1,5 @@
 import { CommerceAuthorityService } from '../commerce/commerce.module.js';
+import { writeStockMovement } from '../stock-movements/stock-movement.writer.js';
 import {
   RealtimeService,
   notifyResourceChange,
@@ -51,17 +52,28 @@ export class ProductsService {
     await this.requireCategory(dto.categoryId);
     try {
       const response = toResponse(
-        await this.db.product.create({
-          data: {
-            userId,
-            categoryId: dto.categoryId,
-            name: dto.name,
-            description: dto.description,
-            coverImage: dto.coverImage === '' ? null : dto.coverImage,
-            price: dto.price,
-            stock: dto.stock,
-          },
-          include: PRODUCT_RELATIONS,
+        await this.db.$transaction(async (tx) => {
+          const product = await tx.product.create({
+            data: {
+              userId,
+              categoryId: dto.categoryId,
+              name: dto.name,
+              description: dto.description,
+              coverImage: dto.coverImage === '' ? null : dto.coverImage,
+              price: dto.price,
+              stock: dto.stock,
+            },
+            include: PRODUCT_RELATIONS,
+          });
+          await writeStockMovement(tx, {
+            product,
+            beforeStock: 0,
+            type: 'INITIAL',
+            actorId: userId,
+            actorName: product.user.username,
+            reason: '商品初始库存',
+          });
+          return product;
         }),
       );
       notifyResourceChange(
@@ -135,7 +147,7 @@ export class ProductsService {
       throw new BadRequestException('修改库存必须提供 stockVersion');
     if (
       Object.entries(dto)
-        .filter(([key]) => key !== 'stockVersion')
+        .filter(([key]) => !['stockVersion', 'stockReason'].includes(key))
         .every(([, value]) => value === undefined)
     )
       throw new BadRequestException('请至少提供一个可更新字段');
@@ -145,23 +157,64 @@ export class ProductsService {
     try {
       // Include ownership in the write condition as well as the human-readable permission check.
       const response = toResponse(
-        await this.db.product.update({
-          where: {
-            ...productScope(actor),
-            id,
-            ...(dto.stock !== undefined
-              ? { stockVersion: dto.stockVersion }
-              : {}),
-          },
-          data: {
-            name: dto.name,
-            description: dto.description,
-            coverImage: dto.coverImage === '' ? null : dto.coverImage,
-            price: dto.price,
-            stock: dto.stock,
-            categoryId: dto.categoryId,
-          },
-          include: PRODUCT_RELATIONS,
+        await this.db.$transaction(async (tx) => {
+          const owner = productScope(actor).userId
+            ? Prisma.sql` AND user_id=${actor.id}::uuid`
+            : Prisma.empty;
+          const locked = await tx.$queryRaw<{ id: string }[]>(
+            Prisma.sql`SELECT id FROM products WHERE id=${id}::uuid ${owner} FOR UPDATE`,
+          );
+          if (!locked.length) throw new NotFoundException('商品不存在');
+          const before = await tx.product.findFirstOrThrow({
+            where: { id, ...productScope(actor) },
+          });
+          if (
+            dto.stock !== undefined &&
+            before.stockVersion !== dto.stockVersion
+          )
+            throw new ConflictException('库存已变化，请重新打开商品后编辑');
+          const stockChanged =
+            dto.stock !== undefined && dto.stock !== before.stock;
+          if (
+            stockChanged &&
+            (!dto.stockReason?.trim() || dto.stockReason.trim().length > 500)
+          )
+            throw new BadRequestException(
+              '修改库存必须提供 1–500 字的 stockReason',
+            );
+          const product = await tx.product.update({
+            where: {
+              ...productScope(actor),
+              id,
+              ...(dto.stock !== undefined
+                ? { stockVersion: dto.stockVersion }
+                : {}),
+            },
+            data: {
+              name: dto.name,
+              description: dto.description,
+              coverImage: dto.coverImage === '' ? null : dto.coverImage,
+              price: dto.price,
+              stock: dto.stock,
+              categoryId: dto.categoryId,
+            },
+            include: PRODUCT_RELATIONS,
+          });
+          if (stockChanged) {
+            const user = await tx.user.findUniqueOrThrow({
+              where: { id: actor.id },
+              select: { username: true },
+            });
+            await writeStockMovement(tx, {
+              product,
+              beforeStock: before.stock,
+              type: 'ADJUSTMENT',
+              actorId: actor.id,
+              actorName: user.username,
+              reason: dto.stockReason!.trim(),
+            });
+          }
+          return product;
         }),
       );
       notifyResourceChange(

@@ -13,6 +13,7 @@ test('account lifecycle preserves upgrade data, overrides newer peer profile eve
   const clients = schemas.map(
     () => new Client({ connectionString: process.env.DATABASE_URL }),
   );
+  const connected = new Set<Client>();
   const id = randomUUID();
   const migrations = (
     await readdir(new URL('../prisma/migrations/', import.meta.url))
@@ -22,6 +23,7 @@ test('account lifecycle preserves upgrade data, overrides newer peer profile eve
   try {
     for (const [i, db] of clients.entries()) {
       await db.connect();
+      connected.add(db);
       await db.query('CREATE SCHEMA "' + schemas[i] + '"');
       await db.query('SET search_path TO "' + schemas[i] + '"');
       for (const migration of migrations.filter(
@@ -63,7 +65,7 @@ test('account lifecycle preserves upgrade data, overrides newer peer profile eve
             [id],
           )
         ).rows[0],
-        { username: 'preserved', token_version: 8, deleted_at: null },
+        { username: 'preserved', token_version: 9, deleted_at: null },
       );
     }
     const [a, b] = clients;
@@ -152,6 +154,8 @@ test('account lifecycle preserves upgrade data, overrides newer peer profile eve
     }
   } finally {
     for (const [i, db] of clients.entries()) {
+      if (!connected.has(db)) continue;
+      await db.query('ROLLBACK').catch(() => {});
       if (/^account_sync_[a-f0-9]{32}_[ab]$/.test(schemas[i]))
         await db
           .query('DROP SCHEMA IF EXISTS "' + schemas[i] + '" CASCADE')

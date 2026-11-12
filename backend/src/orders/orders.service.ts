@@ -12,6 +12,7 @@ import {
   type Permission,
 } from '../auth/permissions.js';
 import { CommerceAuthorityService } from '../commerce/commerce.module.js';
+import { writeStockMovement } from '../stock-movements/stock-movement.writer.js';
 import { DatabaseService } from '../database/database.service.js';
 import { Prisma, OrderStatus } from '../generated/prisma/client.js';
 import {
@@ -234,6 +235,22 @@ export class OrdersService {
           },
           include: relations,
         });
+        for (const i of items) {
+          const before = products.find((p) => p.id === i.productId)!;
+          const product = await tx.product.findUniqueOrThrow({
+            where: { id: i.productId },
+          });
+          await writeStockMovement(tx, {
+            product,
+            beforeStock: before.stock,
+            type: 'ORDER_DEDUCT',
+            actorId: actor.id,
+            actorName: user.username,
+            orderId: order.id,
+            orderNo: order.orderNo,
+            reason: '创建订单扣减库存',
+          });
+        }
         return { order, created: true };
       },
       { timeout: 15000 },
@@ -281,6 +298,7 @@ export class OrdersService {
           complete: 'COMPLETED',
           cancel: 'CANCELLED',
         };
+        const cancelBefore: { id: string; stock: number }[] = [];
         if (action === 'cancel') {
           await this.lockProducts(
             tx,
@@ -289,6 +307,11 @@ export class OrdersService {
           for (const i of [...order.items].sort((a, b) =>
             a.productId.localeCompare(b.productId),
           )) {
+            const before = await tx.product.findUniqueOrThrow({
+              where: { id: i.productId },
+              select: { id: true, stock: true },
+            });
+            cancelBefore.push(before);
             const changed = await tx.product.updateMany({
               where: {
                 id: i.productId,
@@ -305,7 +328,7 @@ export class OrdersService {
           where: { id: actor.id },
           select: { username: true },
         });
-        return tx.order.update({
+        const updated = await tx.order.update({
           where: {
             ...scope(actor, ('order:' + action) as Permission),
             id,
@@ -337,6 +360,23 @@ export class OrdersService {
           },
           include: relations,
         });
+        for (const before of cancelBefore) {
+          const product = await tx.product.findUniqueOrThrow({
+            where: { id: before.id },
+          });
+          await writeStockMovement(tx, {
+            product,
+            beforeStock: before.stock,
+            type: 'ORDER_CANCEL',
+            actorId: actor.id,
+            actorName: user.username,
+            orderId: order.id,
+            orderNo: order.orderNo,
+            // The product owner may read this ledger without access to the order's private notes.
+            reason: '取消订单回补库存',
+          });
+        }
+        return updated;
       },
       { timeout: 15000 },
     );

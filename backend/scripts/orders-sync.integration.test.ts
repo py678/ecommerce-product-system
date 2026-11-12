@@ -81,11 +81,11 @@ test('order inventory replication is atomic, ordered, idempotent and single writ
             items: products.map((productId) => ({ productId, quantity: 2 })),
           });
           orderId = order.id;
-          // 50 product updates + order + 50 items + log = 102 journal rows in one source transaction.
+          // 50 商品更新 + 50 库存流水 + 订单 + 50 明细 + 日志，同属一个源事务。
           const events = await a.query(
             'SELECT * FROM _sync_events WHERE delivered_at IS NULL ORDER BY sequence',
           );
-          assert.equal(events.rowCount, 102);
+          assert.equal(events.rowCount, 152);
           assert.equal(
             new Set(events.rows.map((r) => r.transaction_id)).size,
             1,
@@ -148,6 +148,7 @@ test('order inventory replication is atomic, ordered, idempotent and single writ
             'orders',
             'order_items',
             'order_logs',
+            'stock_movements',
           ]) {
             const source = (
               await a.query(

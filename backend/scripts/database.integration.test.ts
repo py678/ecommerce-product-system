@@ -22,43 +22,51 @@ test('Prisma relations, Decimal values and CRUD work without leaving fixture rec
   const id = randomUUID();
   const rollback = new Error('ROLLBACK_VERIFICATION_FIXTURE');
   try {
+    // 冷启动连接不计入业务事务时间，避免本机繁忙时尚未取得连接就误报回滚失败。
+    await prisma.$connect();
     await assert.rejects(
-      prisma.$transaction(async (tx) => {
-        const user = await tx.user.create({
-          data: {
-            id,
-            username: `verify-${id}`,
-            email: `${id}@example.invalid`,
-            passwordHash:
-              '$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy',
-          },
-        });
-        const category = await tx.category.create({
-          data: { name: 'Verification category' },
-        });
-        const product = await tx.product.create({
-          data: {
-            name: 'Verification product',
-            userId: user.id,
-            categoryId: category.id,
-            price: '19.90',
-            stock: 3,
-          },
-          include: { category: true, user: true },
-        });
-        assert.equal(product.price.toFixed(2), '19.90');
-        assert.equal(product.user.id, user.id);
-        assert.equal(product.category.id, category.id);
-        const updated = await tx.product.update({
-          where: { id: product.id },
-          data: { stock: 2, price: '9.99' },
-        });
-        assert.equal(updated.stock, 2);
-        assert.equal(updated.price.toFixed(2), '9.99');
-        await tx.product.delete({ where: { id: product.id } });
-        assert.equal(await tx.product.count({ where: { id: product.id } }), 0);
-        throw rollback;
-      }),
+      prisma.$transaction(
+        async (tx) => {
+          const user = await tx.user.create({
+            data: {
+              id,
+              username: `verify-${id}`,
+              email: `${id}@example.invalid`,
+              passwordHash:
+                '$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy',
+            },
+          });
+          const category = await tx.category.create({
+            data: { name: 'Verification category' },
+          });
+          const product = await tx.product.create({
+            data: {
+              name: 'Verification product',
+              userId: user.id,
+              categoryId: category.id,
+              price: '19.90',
+              stock: 3,
+            },
+            include: { category: true, user: true },
+          });
+          assert.equal(product.price.toFixed(2), '19.90');
+          assert.equal(product.user.id, user.id);
+          assert.equal(product.category.id, category.id);
+          const updated = await tx.product.update({
+            where: { id: product.id },
+            data: { stock: 2, price: '9.99' },
+          });
+          assert.equal(updated.stock, 2);
+          assert.equal(updated.price.toFixed(2), '9.99');
+          await tx.product.delete({ where: { id: product.id } });
+          assert.equal(
+            await tx.product.count({ where: { id: product.id } }),
+            0,
+          );
+          throw rollback;
+        },
+        { maxWait: 15000, timeout: 30000 },
+      ),
       (error: unknown) => error === rollback,
     );
     assert.equal(await prisma.user.count({ where: { id } }), 0);

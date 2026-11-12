@@ -21,6 +21,9 @@ export function ProductFormModal({
   const [uploading, setUploading] = useState(false);
   const { message } = App.useApp();
   const [stale, setStale] = useState(false);
+  const stock = Form.useWatch('stock', form);
+  const stockChanged =
+    !!product && stock !== undefined && stock !== product.stock;
   useRealtimeEvent('product:changed', (event) => {
     if (event.id === product?.id) setStale(true);
   });
@@ -33,12 +36,16 @@ export function ProductFormModal({
     if (uploading) return;
     setSaving(true);
     try {
+      const { stockReason, ...fields } = values;
       if (product)
         await api.products.update(product.id, {
-          ...values,
+          ...fields,
+          ...(fields.stock !== product.stock
+            ? { stockReason: stockReason?.trim() }
+            : {}),
           stockVersion: product.stockVersion,
         });
-      else await api.products.create(values);
+      else await api.products.create(fields);
       void message.success(product ? '商品已更新' : '商品已创建');
       onSaved();
     } catch (cause) {
@@ -144,6 +151,32 @@ export function ProductFormModal({
             <InputNumber min={0} max={2147483647} className="full-width" />
           </Form.Item>
         </div>
+        {stockChanged && (
+          <Form.Item
+            label="库存调整原因"
+            name="stockReason"
+            preserve={false}
+            rules={[
+              {
+                required: true,
+                whitespace: true,
+                message: '请输入库存调整原因',
+              },
+              {
+                max: 500,
+                transform: (value: string) => value?.trim(),
+                message: '库存调整原因最多 500 个字符',
+              },
+            ]}
+          >
+            <Input.TextArea
+              rows={2}
+              maxLength={500}
+              showCount
+              placeholder="说明本次库存调整的原因"
+            />
+          </Form.Item>
+        )}
         <Form.Item
           label="商品描述"
           name="description"

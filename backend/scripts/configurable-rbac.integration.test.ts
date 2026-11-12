@@ -14,6 +14,7 @@ test('configurable roles preserve upgrade data and replicate role/grants/revocat
   const clients = schemas.map(
     () => new Client({ connectionString: process.env.DATABASE_URL }),
   );
+  const connected = new Set<Client>();
   const admin = randomUUID(),
     operator = randomUUID(),
     cat = randomUUID(),
@@ -27,6 +28,7 @@ test('configurable roles preserve upgrade data and replicate role/grants/revocat
   try {
     for (const [i, db] of clients.entries()) {
       await db.connect();
+      connected.add(db);
       await db.query('CREATE SCHEMA "' + schemas[i] + '"');
       await db.query('SET search_path TO "' + schemas[i] + '"');
       await db.query("SET TIME ZONE 'UTC'");
@@ -86,7 +88,10 @@ test('configurable roles preserve upgrade data and replicate role/grants/revocat
         [{ name: 'preserved product', price: '19.90', stock: 7 }],
       );
     }
-    for (const db of clients)
+    for (const [i, db] of clients.entries()) {
+      await db.query('UPDATE _commerce_config SET write_role=$1', [
+        i === 0 ? 'PRIMARY' : 'REPLICA',
+      ]);
       for (const migration of migrations.filter(
         (n) => n > '20261110023925_configurable_rbac',
       ))
@@ -99,6 +104,7 @@ test('configurable roles preserve upgrade data and replicate role/grants/revocat
             'utf8',
           ),
         );
+    }
     const [a, b] = clients;
     await a.query("UPDATE _commerce_config SET write_role='PRIMARY'");
     await b.query("UPDATE _commerce_config SET write_role='REPLICA'");
@@ -131,7 +137,7 @@ test('configurable roles preserve upgrade data and replicate role/grants/revocat
           operator,
         ])
       ).rows[0].n,
-      8,
+      9,
     );
     await b.query(
       'DROP TRIGGER fail_role_grant ON role_permissions;DROP FUNCTION fail_role_grant()',
@@ -143,7 +149,7 @@ test('configurable roles preserve upgrade data and replicate role/grants/revocat
           operator,
         ])
       ).rows[0],
-      { role_id: role, token_version: 9 },
+      { role_id: role, token_version: 10 },
     );
     assert.equal(
       (
@@ -188,7 +194,7 @@ test('configurable roles preserve upgrade data and replicate role/grants/revocat
           [operator],
         )
       ).rows[0],
-      { role_id: role, role: 'OPERATOR', token_version: 9 },
+      { role_id: role, role: 'OPERATOR', token_version: 10 },
     );
     await a.query('BEGIN');
     await a.query("UPDATE role_permissions SET scope='ALL' WHERE role_id=$1", [
@@ -206,7 +212,7 @@ test('configurable roles preserve upgrade data and replicate role/grants/revocat
           operator,
         ])
       ).rows[0].n,
-      10,
+      11,
     );
     assert.equal(
       (
@@ -218,6 +224,8 @@ test('configurable roles preserve upgrade data and replicate role/grants/revocat
     );
   } finally {
     for (const [i, db] of clients.entries()) {
+      if (!connected.has(db)) continue;
+      await db.query('ROLLBACK').catch(() => {});
       if (/^roles_sync_[a-f0-9]{32}_[ab]$/.test(schemas[i]))
         await db
           .query('DROP SCHEMA IF EXISTS "' + schemas[i] + '" CASCADE')

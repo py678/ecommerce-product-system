@@ -2,6 +2,7 @@ import { applyDecorators, SetMetadata } from '@nestjs/common';
 import { ApiExtension } from '@nestjs/swagger';
 import type { Prisma, UserRole } from '../generated/prisma/client.js';
 export const PERMISSIONS = [
+  'stock:read',
   'order:read',
   'order:create',
   'order:confirm',
@@ -31,6 +32,7 @@ export type Permission = (typeof PERMISSIONS)[number];
 // Compatibility fixtures and initial-role documentation only; live authorization reads roleDefinition.grants.
 export const ROLE_PERMISSIONS: Record<UserRole, readonly Permission[]> = {
   OPERATOR: [
+    'stock:read',
     'order:read',
     'order:create',
     'order:confirm',

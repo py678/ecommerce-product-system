@@ -1,5 +1,31 @@
 # 数据库设计与本地启动
 
+## 库存流水表
+
+`stock_movements` 保存 productId/商品名称/ownerId（归属快照）、变动类型、beforeStock/quantityChange/afterStock、库存版本、操作人和订单快照、原因、唯一业务键和发生时间。没有指向商品/账号的级联外键，删除后仍可追溯；UUID 不复用。`product_id + stock_version` 与 operation_key 各有唯一索引；库存非负、算式平衡、类型方向与订单关联由 CHECK 保护。UPDATE/DELETE/TRUNCATE 被触发器拒绝。主副本写保护与同步捕获沿用订单规则。
+
+```mermaid
+erDiagram
+  products ||..o{ stock_movements : "逻辑关联，无删除级联"
+  orders ||..o{ stock_movements : "业务关联，保留快照"
+  stock_movements {
+    uuid id PK
+    uuid product_id
+    uuid owner_id
+    StockMovementType type
+    int before_stock
+    int quantity_change
+    int after_stock
+    int stock_version
+    uuid actor_id
+    uuid order_id
+    varchar operation_key UK
+    timestamptz created_at
+  }
+```
+
+迁移仅 PRIMARY/STANDALONE 回填 BASELINE；REPLICA 等待复制相同记录，避免不同 UUID 的双份基线。新增 stock:read 给系统 OPERATOR/OWN、ADMIN/ALL，升级递增这些账号 tokenVersion。详见 [库存流水](stock-movements.md)。
+
 数据库：PostgreSQL；ORM：Prisma 7 稳定版。使用 `silk_shop` 独立数据库，应用账号为 `silk_shop_app`，不具备超级用户、创建数据库或创建角色权限。
 
 ```mermaid

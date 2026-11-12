@@ -1,5 +1,6 @@
 export type UserRole = 'OPERATOR' | 'ADMIN';
 export type Permission =
+  | 'stock:read'
   | 'order:read'
   | 'order:create'
   | 'order:confirm'
@@ -87,6 +88,7 @@ export interface Product {
 }
 
 export interface ProductInput {
+  stockReason?: string;
   name: string;
   description: string;
   coverImage?: string;
@@ -94,6 +96,42 @@ export interface ProductInput {
   stock: number;
   stockVersion?: number;
   categoryId: string;
+}
+
+export type StockMovementType =
+  'BASELINE' | 'INITIAL' | 'ADJUSTMENT' | 'ORDER_DEDUCT' | 'ORDER_CANCEL';
+export interface StockMovement {
+  id: string;
+  productId: string;
+  productName: string;
+  type: StockMovementType;
+  beforeStock: number;
+  quantityChange: number;
+  afterStock: number;
+  stockVersion: number;
+  actorId: string | null;
+  actorName: string | null;
+  orderId: string | null;
+  orderNo: string | null;
+  canViewOrder: boolean;
+  reason: string;
+  createdAt: string;
+}
+export interface StockMovementQuery {
+  page: number;
+  pageSize: number;
+  type?: StockMovementType;
+  createdFrom?: string;
+  createdTo?: string;
+  orderNo?: string;
+  productId?: string;
+  name?: string;
+}
+export interface StockMovementPage {
+  list: StockMovement[];
+  total: number;
+  page: number;
+  pageSize: number;
 }
 
 export interface ImageUploadResponse {

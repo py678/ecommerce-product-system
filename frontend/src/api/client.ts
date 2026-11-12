@@ -8,6 +8,8 @@ import axios from 'axios';
 import { sessionToken, expireSession } from '../auth/session';
 import type {
   Role,
+  StockMovementQuery,
+  StockMovementPage,
   RoleInput,
   RoleOption,
   RolePage,
@@ -83,6 +85,37 @@ export function errorMessage(error: unknown): string {
 export const isCanceled = axios.isCancel;
 
 export const api = {
+  stockMovements: {
+    list: async (params: StockMovementQuery, signal?: AbortSignal) =>
+      (
+        await http.get<StockMovementPage>('/stock-movements', {
+          params,
+          signal,
+        })
+      ).data,
+    forProduct: async (
+      id: string,
+      params: StockMovementQuery,
+      signal?: AbortSignal,
+    ) =>
+      (
+        await http.get<StockMovementPage>(`/products/${id}/stock-movements`, {
+          params,
+          signal,
+        })
+      ).data,
+    forOrder: async (
+      id: string,
+      params: StockMovementQuery,
+      signal?: AbortSignal,
+    ) =>
+      (
+        await http.get<StockMovementPage>(`/orders/${id}/stock-movements`, {
+          params,
+          signal,
+        })
+      ).data,
+  },
   roles: {
     catalog: async (signal?: AbortSignal) =>
       (

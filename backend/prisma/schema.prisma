@@ -271,3 +271,39 @@ model OrderLog {
   @@index([orderId, createdAt])
   @@map("order_logs")
 }
+
+enum StockMovementType {
+  BASELINE
+  INITIAL
+  ADJUSTMENT
+  ORDER_DEDUCT
+  ORDER_CANCEL
+}
+
+// Immutable snapshots intentionally survive product/account deletion.
+model StockMovement {
+  id             String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  productId      String @map("product_id") @db.Uuid
+  productName    String @map("product_name") @db.VarChar(200)
+  ownerId        String @map("owner_id") @db.Uuid
+  type           StockMovementType
+  beforeStock    Int @map("before_stock")
+  quantityChange Int @map("quantity_change")
+  afterStock     Int @map("after_stock")
+  stockVersion   Int @map("stock_version")
+  actorId        String? @map("actor_id") @db.Uuid
+  actorName      String? @map("actor_name") @db.VarChar(64)
+  orderId        String? @map("order_id") @db.Uuid
+  orderNo        String? @map("order_no") @db.VarChar(40)
+  reason         String @db.VarChar(500)
+  operationKey   String @unique @map("operation_key") @db.VarChar(200)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@unique([productId, stockVersion])
+  @@index([productId, createdAt])
+  @@index([ownerId, createdAt])
+  @@index([orderId, createdAt])
+  @@index([type, createdAt])
+  @@index([createdAt, id])
+  @@map("stock_movements")
+}

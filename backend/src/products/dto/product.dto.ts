@@ -71,6 +71,19 @@ export class UpdateProductDto extends PartialType(CreateProductDto, {
   skipNullProperties: false,
 }) {
   @ApiPropertyOptional({
+    minLength: 1,
+    maxLength: 500,
+    description: '实际库存变化时必填，说明调整原因；同值或仅修改资料时可省略',
+  })
+  @ValidateIf((_object, value) => value !== undefined)
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
+  @IsString()
+  @Length(1, 500)
+  stockReason?: string;
+
+  @ApiPropertyOptional({
     minimum: 0,
     description: '提交 stock 时必填；使用读取时的版本，过期返回409',
   })

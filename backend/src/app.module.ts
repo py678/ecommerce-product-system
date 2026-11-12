@@ -1,4 +1,5 @@
 import { OrdersModule } from './orders/orders.module.js';
+import { StockMovementsModule } from './stock-movements/stock-movements.module.js';
 import { RolesModule } from './roles/roles.module.js';
 import { AdminModule } from './admin/admin.module.js';
 import { Module } from '@nestjs/common';
@@ -13,6 +14,7 @@ import { UploadModule } from './upload/upload.module.js';
 
 @Module({
   imports: [
+    StockMovementsModule,
     RolesModule,
     OrdersModule,
     AdminModule,

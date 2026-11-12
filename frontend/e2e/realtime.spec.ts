@@ -136,7 +136,7 @@ test('two authenticated windows merge product events, preserve queries, recover 
       ids.slice(0, 3).map((id) =>
         request.patch('/api/products/' + id, {
           headers,
-          data: { stock: 4, stockVersion: 0 },
+          data: { stock: 4, stockVersion: 0, stockReason: '实时刷新回归盘点' },
         }),
       ),
     );
@@ -156,7 +156,7 @@ test('two authenticated windows merge product events, preserve queries, recover 
       .fill('Unsaved local draft');
     const remote = await request.patch('/api/products/' + ids[10], {
       headers,
-      data: { stock: 5, stockVersion: 0 },
+      data: { stock: 5, stockVersion: 0, stockReason: '远程库存调整回归' },
     });
     expect(remote.status()).toBe(200);
     await expect(a.getByText(/数据可能已变化/)).toBeVisible();
@@ -167,23 +167,23 @@ test('two authenticated windows merge product events, preserve queries, recover 
     // Tear down the upgraded WebSocket without touching either business server.
     await expect.poll(() => transports.length).toBeGreaterThan(0);
     requests.length = 0;
-    const recovered = b.waitForResponse(
-      (response) =>
-        new URL(response.url()).pathname === '/api/products' &&
-        response.status() === 200,
+    // 等待断线后新发出的请求，不能误把断线前在途请求的响应当作重连刷新。
+    const recovered = b.waitForRequest(
+      (request) => new URL(request.url()).pathname === '/api/products',
     );
     transports.at(-1)!.close({ code: 1012, reason: 'isolated reconnect test' });
     await expect(b.getByLabel(/实时连接：(中断|连接中)/)).toBeVisible();
     await expect(
       b.getByLabel('实时连接：已连接', { exact: true }),
     ).toBeVisible();
-    await recovered;
-    expect(Object.fromEntries(new URL(requests.at(-1)!).searchParams)).toEqual(
-      Object.fromEntries(new URL(b.url()).searchParams),
-    );
+    const recoveryRequest = await recovered;
+    expect((await recoveryRequest.response())?.status()).toBe(200);
+    expect(
+      Object.fromEntries(new URL(recoveryRequest.url()).searchParams),
+    ).toEqual(Object.fromEntries(new URL(b.url()).searchParams));
     const forbidden = await request.patch('/api/products/' + ids[0], {
       headers: { Authorization: 'Bearer ' + operator.accessToken },
-      data: { stock: 5, stockVersion: 0 },
+      data: { stock: 5, stockVersion: 0, stockReason: '越权库存调整验证' },
     });
     expect(forbidden.status()).toBe(404);
     const changed = await request.patch('/api/users/me/password', {

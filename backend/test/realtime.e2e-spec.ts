@@ -9,6 +9,7 @@ import { ProductsModule } from '../dist/products/products.module.js';
 import { ProductsService } from '../dist/products/products.service.js';
 import { RealtimeModule } from '../dist/realtime/realtime.module.js';
 import { RealtimeService } from '../dist/realtime/realtime.service.js';
+import type { Prisma } from '../dist/generated/prisma/client.js';
 
 // Real network handshake and JWT verification; only persistence is replaced.
 describe.sequential('Realtime authenticated transport', () => {
@@ -45,17 +46,37 @@ describe.sequential('Realtime authenticated transport', () => {
     description: '',
     coverImage: null,
     stock: 10,
+    stockVersion: 0,
     price: { toFixed: () => '12.00' },
     createdAt: new Date(),
     updatedAt: new Date(),
     user: { id: user.id, username: user.username },
     category: { id: randomUUID(), name: 'Fixture' },
   };
+  const movements: Record<string, unknown>[] = [];
   const db = {
+    $queryRaw: vi.fn(async () => [{ id: product.id }]),
+    async $transaction(
+      callback: (tx: Prisma.TransactionClient) => Promise<unknown>,
+    ) {
+      const before = {
+        stock: product.stock,
+        stockVersion: product.stockVersion,
+      };
+      const count = movements.length;
+      try {
+        return await callback(db as unknown as Prisma.TransactionClient);
+      } catch (error) {
+        Object.assign(product, before);
+        movements.splice(count);
+        throw error;
+      }
+    },
     commerceConfig: {
       findUnique: vi.fn(async () => ({ writeRole: 'STANDALONE' })),
     },
     user: {
+      findUniqueOrThrow: vi.fn(async () => user),
       findUnique: vi.fn(async ({ where }: { where: { id: string } }) =>
         where.id === user.id
           ? { ...user }
@@ -66,11 +87,22 @@ describe.sequential('Realtime authenticated transport', () => {
     },
     product: {
       findUnique: vi.fn(async () => product),
-      update: vi.fn(async () => ({ ...product, stock: 11 })),
+      findFirstOrThrow: vi.fn(async () => ({ ...product })),
+      update: vi.fn(async () => {
+        product.stock = 11;
+        product.stockVersion++;
+        return { ...product };
+      }),
       create: vi.fn(async () => product),
       delete: vi.fn(async () => product),
     },
     category: { findUnique: vi.fn(async () => ({ id: product.categoryId })) },
+    stockMovement: {
+      create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => {
+        movements.push({ ...data });
+        return data;
+      }),
+    },
   };
   function client(token?: string, extra = {}) {
     const socket = io(url, {
@@ -119,6 +151,9 @@ describe.sequential('Realtime authenticated transport', () => {
   afterEach(() => {
     sockets.splice(0).forEach((socket) => socket.disconnect());
     user.tokenVersion = 0;
+    product.stock = 10;
+    product.stockVersion = 0;
+    movements.splice(0);
     vi.restoreAllMocks();
   });
   afterAll(async () => {
@@ -173,7 +208,7 @@ describe.sequential('Realtime authenticated transport', () => {
       .update(
         product.id,
         { id: user.id, role: 'OPERATOR' },
-        { stock: 11, stockVersion: 0 },
+        { stock: 11, stockVersion: 0, stockReason: '盘点' },
       );
     expect(await received).toEqual({
       id: product.id,
@@ -185,6 +220,16 @@ describe.sequential('Realtime authenticated transport', () => {
         where: { id: product.id, userId: user.id, stockVersion: 0 },
       }),
     );
+    expect(product.stock).toBe(11);
+    expect(movements).toEqual([
+      expect.objectContaining({
+        type: 'ADJUSTMENT',
+        beforeStock: 10,
+        afterStock: 11,
+        quantityChange: 1,
+        stockVersion: 1,
+      }),
+    ]);
   });
   it('does not broadcast failed writes', async () => {
     const socket = client(
@@ -200,11 +245,13 @@ describe.sequential('Realtime authenticated transport', () => {
         .update(
           product.id,
           { id: user.id, role: 'OPERATOR' },
-          { stock: 11, stockVersion: 0 },
+          { stock: 11, stockVersion: 0, stockReason: '盘点' },
         ),
     ).rejects.toThrow('write failed');
     await new Promise((resolve) => setTimeout(resolve, 60));
     expect(listener).not.toHaveBeenCalled();
+    expect(product.stock).toBe(10);
+    expect(movements).toHaveLength(0);
   });
   it('keeps successful CRUD successful when notification fails', async () => {
     vi.spyOn(realtime, 'resourceChanged').mockImplementation(() => {
@@ -216,9 +263,32 @@ describe.sequential('Realtime authenticated transport', () => {
         .update(
           product.id,
           { id: user.id, role: 'OPERATOR' },
-          { stock: 11, stockVersion: 0 },
+          { stock: 11, stockVersion: 0, stockReason: '盘点' },
         ),
     ).toMatchObject({ stock: 11 });
+  });
+  it('rolls back the stock change and emits nothing when the ledger append fails', async () => {
+    const socket = client(
+      await jwt.signAsync({ sub: user.id, tokenVersion: 0 }),
+    );
+    await connected(socket);
+    const listener = vi.fn();
+    socket.on('product:changed', listener);
+    db.stockMovement.create.mockRejectedValueOnce(new Error('ledger failed'));
+    await expect(
+      app
+        .get(ProductsService)
+        .update(
+          product.id,
+          { id: user.id, role: 'OPERATOR' },
+          { stock: 11, stockVersion: 0, stockReason: '盘点' },
+        ),
+    ).rejects.toThrow('ledger failed');
+    await new Promise((resolve) => setTimeout(resolve, 60));
+    expect(listener).not.toHaveBeenCalled();
+    expect(product.stock).toBe(10);
+    expect(product.stockVersion).toBe(0);
+    expect(movements).toHaveLength(0);
   });
   it('notifies and disconnects only the revoked user and rejects the old JWT', async () => {
     const token = await jwt.signAsync({ sub: user.id, tokenVersion: 0 });

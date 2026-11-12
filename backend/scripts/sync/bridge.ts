@@ -84,6 +84,24 @@ const columns = {
     'reason',
     'created_at',
   ],
+  stock_movements: [
+    'id',
+    'product_id',
+    'product_name',
+    'owner_id',
+    'type',
+    'before_stock',
+    'quantity_change',
+    'after_stock',
+    'stock_version',
+    'actor_id',
+    'actor_name',
+    'order_id',
+    'order_no',
+    'reason',
+    'operation_key',
+    'created_at',
+  ],
 } as const;
 
 interface Change {
@@ -105,6 +123,47 @@ async function applyInTransaction(
 ): Promise<boolean> {
   const fields = columns[change.table_name];
   if (!fields) throw new Error('Unknown synchronized table');
+
+  if (change.table_name === 'stock_movements') {
+    // 主库不可被逆向重放覆盖，包括完全相同 UUID 的重放。
+    if ((await commerceRole(target)) === 'PRIMARY')
+      throw new Error('COMMERCE_PRIMARY_REJECTS_REPLICA');
+    if (change.operation !== 'UPSERT')
+      throw new Error('STOCK_MOVEMENT_IMMUTABLE');
+    if (!change.row_data || change.row_data.id !== change.record_id)
+      throw new Error('Invalid stock movement payload');
+    const quoted = fields.map((field) => `"${field}"`).join(', ');
+    const payload = JSON.stringify(
+      Object.fromEntries(
+        fields.map((field) => [field, change.row_data![field]]),
+      ),
+    );
+    // 只追加：禁止借普通 ON CONFLICT UPDATE 改写流水。相同 UUID 必须逐字段相同。
+    // 在数据库中比较类型化 JSON，可正确处理时区表示不同但时刻相同的时间戳。
+    const inserted = await target.query(
+      `INSERT INTO stock_movements (${quoted})
+       SELECT ${quoted} FROM jsonb_populate_record(NULL::stock_movements,$1::jsonb)
+       ON CONFLICT (id) DO NOTHING RETURNING id`,
+      [payload],
+    );
+    if (!inserted.rowCount) {
+      const existing = await target.query(
+        `SELECT to_jsonb(m)=to_jsonb(p) AS identical FROM stock_movements m
+         CROSS JOIN jsonb_populate_record(NULL::stock_movements,$2::jsonb) p
+         WHERE m.id=$1`,
+        [change.record_id, payload],
+      );
+      if (!existing.rows[0]?.identical)
+        throw new Error('STOCK_MOVEMENT_CONFLICT');
+      return false;
+    }
+    await target.query(
+      `INSERT INTO _sync_versions(table_name,record_id,changed_at,origin_id,event_id)
+       VALUES('stock_movements',$1,$2,$3,$4)`,
+      [change.record_id, change.changed_at, change.origin_id, change.event_id],
+    );
+    return true;
+  }
 
   // Lock existing business rows before their version, matching the capture trigger's lock order.
   await target.query(

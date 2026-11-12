@@ -114,7 +114,10 @@ describe.sequential('Configurable role workflow', () => {
   });
   it('provides a fixed catalog, rejects invalid grants and strict-whitelist fields', async () => {
     const c = await call('get', '/api/admin/roles/permissions').expect(200);
-    expect(c.body).toHaveLength(24);
+    expect(c.body).toHaveLength(25);
+    expect(c.body).toContainEqual(
+      expect.objectContaining({ code: 'stock:read', scoped: true }),
+    );
     for (const grants of [
       [{ permission: 'product:drop', scope: 'ALL' }],
       [{ permission: 'category:read', scope: 'OWN' }],

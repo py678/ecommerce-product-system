@@ -21,7 +21,8 @@ import { api, errorMessage } from '../api/client';
 import { useResource } from '../hooks/useResource';
 import { useRealtimeRefresh } from '../realtime/useRealtimeRefresh';
 import { LoadingScreen, RequestError } from '../components/PageFeedback';
-import { canManageOrder } from '../auth/permissions';
+import { can, canManageOrder } from '../auth/permissions';
+import { StockMovements } from '../components/StockMovements';
 import { useAuth } from '../auth/useAuth';
 import { ORDER_COLORS, ORDER_LABELS } from '../orders/order-types';
 
@@ -186,6 +187,11 @@ export function OrderDetailPage() {
           }))}
         />
       </Card>
+      {can(user, 'stock:read') && (
+        <Card title="库存变动">
+          <StockMovements key={o.id} orderId={o.id} />
+        </Card>
+      )}
       <Modal
         title={action === 'ship' ? '填写物流并发货' : '取消订单并回补库存'}
         open={!!action}

@@ -1,5 +1,11 @@
 # 项目架构
 
+## 库存流水
+
+StockMovementsModule 提供只读查询与 JWT/权限/数据范围检查。事务内 writer 被商品初始化、手动调整及订单扣补调用，接受同一个 Prisma TransactionClient；不单独开启事务，不自行递增库存版本。商品更新在行锁后读取前值、复核归属与版本，库存与流水一起提交，提交后才通知 Socket。缺货、唯一键或流水写入异常均回滚业务。
+
+前端商品详情和订单详情复用 StockMovements 组件；实时刷新保留当前查询，订单链接同时取决于 order:read 和后端 canViewOrder。副本只复制主库结果，桥按源事务应用，流水独立使用追加重放分支，相同 UUID 必须类型化内容完全相同，否则整事务失败；不靠较新时间戳覆盖历史记录。规格与限制见 [库存流水](stock-movements.md)。
+
 后端采用 NestJS 模块结构，使用 TypeScript / ESM；通过 Prisma PostgreSQL adapter 连接数据库。前端采用 React / Vite、Ant Design、React Router 和 Axios。
 
 工程使用 npm workspaces 管理 backend/frontend，根目录单一锁文件；Turborepo 编排构建、代码检查与隔离测试。Prisma Client 在后端构建前生成；构建使用本地缓存，集成测试禁用缓存。Docker 以根目录为构建上下文，保留应用目录及各自运行依赖；具体任务和环境配置见 [工具链说明](tooling.md)。

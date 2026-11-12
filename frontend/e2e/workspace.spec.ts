@@ -7,11 +7,18 @@ import { unlink } from 'node:fs/promises';
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { DatabaseService } from '../../backend/dist/database/database.service.js';
+import {
+  JWT_AUDIENCE,
+  JWT_ISSUER,
+  readAuthConfig,
+} from '../../backend/dist/auth/auth.config.js';
 
 const backendRequire = createRequire(
   new URL('../../backend/package.json', import.meta.url),
 );
 const { config } = backendRequire('dotenv');
+const { hash } = backendRequire('bcryptjs');
+const { JwtService } = backendRequire('@nestjs/jwt');
 config({
   path: fileURLToPath(new URL('../../backend/.env', import.meta.url)),
   quiet: true,
@@ -45,17 +52,36 @@ test.beforeAll(async ({ request }) => {
     await database.$connect();
   }
   let ownerToken = '';
+  const authConfig = readAuthConfig();
+  const jwt = new JwtService({
+    secret: authConfig.secret,
+    signOptions: {
+      algorithm: 'HS256',
+      expiresIn: authConfig.expiresInSeconds,
+      issuer: JWT_ISSUER,
+      audience: JWT_AUDIENCE,
+    },
+  });
+  const passwordHash = await hash(password, 12);
+  // 仅初始化隔离数据库账号；注册接口的限额留给实际注册与重复账号验收。
   for (const username of [ownerName, otherName]) {
-    const response = await request.post(`${apiBase}/auth/register`, {
-      data: { username, email: `${username}@example.invalid`, password },
+    const owner = username === ownerName;
+    const user = await database.user.create({
+      data: {
+        username,
+        email: `${username}@example.invalid`,
+        passwordHash,
+        role: owner ? 'ADMIN' : 'OPERATOR',
+        roleId: owner
+          ? '00000000-0000-4000-8000-000000000010'
+          : '00000000-0000-4000-8000-000000000011',
+      },
     });
-    expect(response.status()).toBe(201);
-    const body = await response.json();
-    await database.user.update({
-      where: { id: body.user.id },
-      data: { role: username === ownerName ? 'ADMIN' : 'OPERATOR' },
-    });
-    if (username === ownerName) ownerToken = body.accessToken;
+    if (owner)
+      ownerToken = await jwt.signAsync({
+        sub: user.id,
+        tokenVersion: user.tokenVersion,
+      });
   }
   const headers = { Authorization: `Bearer ${ownerToken}` };
   const category = await request.post(`${apiBase}/categories`, {
@@ -204,6 +230,10 @@ test('registers an operator, then manages categories/products as an administrato
   await page.getByRole('button', { name: '编辑商品' }).click();
   await page.getByRole('dialog').getByLabel('价格（元）').fill('99.95');
   await page.getByRole('dialog').getByLabel('库存数量').fill('0');
+  await page
+    .getByRole('dialog')
+    .getByLabel('库存调整原因')
+    .fill('浏览器回归：盘点清零');
   await page
     .getByRole('dialog')
     .getByRole('button', { name: '保存修改' })
