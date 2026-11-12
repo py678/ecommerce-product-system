@@ -183,7 +183,6 @@ export function ProductsPage() {
     {
       title: '操作',
       key: 'actions',
-      fixed: 'right',
       width: 230,
       render: (_value, item) => {
         const editable = canManageProduct(user, item.userId, 'product:update');
