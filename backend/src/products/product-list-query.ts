@@ -26,6 +26,7 @@ export function productListQuery(query: ProductQueryDto, threshold: number) {
     throw new BadRequestException('无效的排序字段或方向');
   const name = query.name ?? query.search;
   const where: Prisma.ProductWhereInput = {
+    ...(query.status !== undefined ? { status: query.status } : {}),
     ...(name ? { name: { contains: name, mode: 'insensitive' } } : {}),
     ...(query.categoryId ? { categoryId: query.categoryId } : {}),
     ...(query.minPrice !== undefined || query.maxPrice !== undefined

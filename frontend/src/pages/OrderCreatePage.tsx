@@ -52,6 +52,7 @@ export function OrderCreatePage() {
           page,
           pageSize: 10,
           name: search || undefined,
+          status: 'PUBLISHED',
           sortBy: 'createdAt',
           sortOrder: 'desc',
         },
@@ -268,7 +269,9 @@ export function OrderCreatePage() {
         <Table
           rowKey="id"
           loading={resource.loading}
-          dataSource={resource.data?.list ?? []}
+          dataSource={
+            resource.data?.list.filter((p) => p.status === 'PUBLISHED') ?? []
+          }
           pagination={{
             current: page,
             pageSize: 10,

@@ -25,6 +25,8 @@ import { useAuth } from '../auth/useAuth';
 import { useResource } from '../hooks/useResource';
 import { LoadingScreen, RequestError } from '../components/PageFeedback';
 import { ProductFormModal } from '../components/ProductFormModal';
+import { ProductStatusAction } from '../components/ProductStatusAction';
+import { ProductStatusTag } from '../components/ProductStatusTag';
 import { formatMoney, formatTime } from '../utils/format';
 
 export function ProductDetailPage() {
@@ -101,6 +103,9 @@ export function ProductDetailPage() {
         </div>
         <Space>
           {editable && (
+            <ProductStatusAction product={product} onChanged={refresh} />
+          )}
+          {editable && (
             <Button
               size="large"
               icon={<EditOutlined />}
@@ -154,6 +159,11 @@ export function ProductDetailPage() {
           column={{ xs: 1, sm: 2 }}
           items={[
             { key: 'name', label: '商品名称', children: product.name },
+            {
+              key: 'status',
+              label: '上下架状态',
+              children: <ProductStatusTag status={product.status} />,
+            },
             {
               key: 'owner',
               label: '创建者',

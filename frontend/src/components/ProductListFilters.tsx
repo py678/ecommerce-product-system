@@ -112,6 +112,19 @@ export function ProductListFilters({ query, onChange }: Props) {
           ]}
         />
       </Form.Item>
+      <Form.Item label="上下架状态">
+        <Select
+          aria-label="上下架状态"
+          value={query.status}
+          allowClear
+          placeholder="全部状态"
+          onChange={(status) => onChange({ status })}
+          options={[
+            { value: 'PUBLISHED', label: '已上架' },
+            { value: 'OFFLINE', label: '已下架' },
+          ]}
+        />
+      </Form.Item>
       <Form.Item label="排序字段">
         <Select
           aria-label="排序字段"

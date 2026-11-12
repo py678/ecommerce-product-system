@@ -1,5 +1,15 @@
 # API 使用说明
 
+## 商品上下架
+
+商品响应增加 `status: PUBLISHED | OFFLINE`，已有及新建商品默认 PUBLISHED。`GET /api/products?status=OFFLINE` 可与名称、分类、价格、库存、排序和分页组合，列表及总数使用同一 where；后台不隐藏下架商品。
+
+`PATCH /api/products/:id/status` 接受且仅接受 `{ "status": "OFFLINE" }` 或 `{ "status": "PUBLISHED" }`。需 JWT、`product:update` 和该操作的 OWN/ALL 范围。成功200返回商品；无权限403，越权/不存在统一404，非法状态或额外字段400，只读副本503。同状态重复请求成功且不产生库存变化；普通创建/编辑 DTO 不接受 status。
+
+下架不修改 stock、stockVersion、库存流水或历史订单。新订单请求引用下架商品时409，整单事务回滚；已成功订单的同幂等键重试仍返回原结果。历史订单确认、发货、完成及允许的取消不受上下架影响。上下架与下单共用商品行锁，以取得锁后的状态决定新订单能否创建。
+
+前端录单选择请求显式传 `status=PUBLISHED`。页面禁选不能替代后端校验；选中后被其他人下架仍会在提交时拒绝。商品变更事件继续通过现有 Socket.IO 自动刷新。
+
 ## 库存流水
 
 以下查询均需 JWT 与 `stock:read`，page 默认 1，pageSize 默认 10、最大 100；返回 `{list,total,page,pageSize}`，按 createdAt desc/id desc 排序。OWN 按商品创建者快照过滤，不按操作人；列表和总数共用同一 where。

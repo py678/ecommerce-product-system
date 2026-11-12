@@ -17,7 +17,7 @@ import type {
   ValidatorConstraintInterface,
 } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { Prisma } from '../../generated/prisma/client.js';
+import { Prisma, ProductStatus } from '../../generated/prisma/client.js';
 
 export enum StockStatus {
   Zero = 'zero',
@@ -62,6 +62,14 @@ class PriceRange implements ValidatorConstraintInterface {
 
 // Kept separate from shared PaginationDto so category pagination/search stays unchanged.
 export class ProductQueryDto {
+  @ApiPropertyOptional({
+    enum: ProductStatus,
+    description: '商品上架状态；省略时包含全部状态',
+  })
+  @ValidateIf(optional)
+  @IsEnum(ProductStatus)
+  status?: ProductStatus;
+
   @ApiPropertyOptional({
     type: Number,
     default: 1,

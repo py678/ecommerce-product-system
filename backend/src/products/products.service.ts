@@ -21,6 +21,7 @@ import {
   ProductQueryDto,
   ProductResponseDto,
   UpdateProductDto,
+  UpdateProductStatusDto,
 } from './dto/product.dto.js';
 
 const PRODUCT_RELATIONS = {
@@ -234,6 +235,51 @@ export class ProductsService {
         await this.findInScope(id, productScope(actor));
         throw new ConflictException('库存已变化，请重新打开商品后编辑');
       }
+      return this.handleWriteError(error);
+    }
+  }
+
+  async updateStatus(
+    id: string,
+    actor: Actor,
+    dto: UpdateProductStatusDto,
+  ): Promise<ProductResponseDto> {
+    await this.authority.requireWriter();
+    const scope = productScope(actor, 'product:update');
+    try {
+      const result = await this.db.$transaction(async (tx) => {
+        // The same row lock used by order creation serializes publication and stock reservation.
+        const owner = scope.userId
+          ? Prisma.sql` AND user_id=${actor.id}::uuid`
+          : Prisma.empty;
+        const locked = await tx.$queryRaw<{ id: string }[]>(
+          Prisma.sql`SELECT id FROM products WHERE id=${id}::uuid ${owner} FOR UPDATE`,
+        );
+        if (!locked.length) throw new NotFoundException('商品不存在');
+        const before = await tx.product.findFirstOrThrow({
+          where: { ...scope, id },
+          include: PRODUCT_RELATIONS,
+        });
+        if (before.status === dto.status)
+          return { product: before, changed: false };
+        const product = await tx.product.update({
+          where: { ...scope, id },
+          data: { status: dto.status },
+          include: PRODUCT_RELATIONS,
+        });
+        return { product, changed: true };
+      });
+      const response = toResponse(result.product);
+      if (result.changed)
+        notifyResourceChange(
+          this.realtime,
+          'product',
+          response.id,
+          'updated',
+          response.userId,
+        );
+      return response;
+    } catch (error) {
       return this.handleWriteError(error);
     }
   }

@@ -38,6 +38,7 @@ import {
   ProductQueryDto,
   ProductResponseDto,
   UpdateProductDto,
+  UpdateProductStatusDto,
 } from './dto/product.dto.js';
 
 @ApiTags('商品')
@@ -86,6 +87,24 @@ export class ProductsController {
     @Req() request: AuthenticatedRequest,
   ) {
     return this.products.findOne(id, request.user);
+  }
+
+  @Patch(':id/status')
+  @ApiOperation({
+    summary: '上架或下架商品；按 product:update 的 OWN/ALL 范围执行',
+  })
+  @ApiOkResponse({ type: ProductResponseDto })
+  @ApiNotFoundResponse({ description: '商品不存在或不在可访问范围内' })
+  @ApiServiceUnavailableResponse({
+    description: '当前数据库是只读副本，请使用主服务操作',
+  })
+  @RequirePermissions('product:update')
+  updateStatus(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() request: AuthenticatedRequest,
+    @Body() dto: UpdateProductStatusDto,
+  ) {
+    return this.products.updateStatus(id, request.user, dto);
   }
 
   @Patch(':id')

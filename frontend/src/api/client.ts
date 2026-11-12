@@ -26,6 +26,7 @@ import type {
   Page,
   Product,
   ProductInput,
+  ProductStatus,
   ProductListQuery,
   ProductPage,
   User,
@@ -234,6 +235,8 @@ export const api = {
       (await http.post<Product>('/products', input)).data,
     update: async (id: string, input: ProductInput) =>
       (await http.patch<Product>(`/products/${id}`, input)).data,
+    updateStatus: async (id: string, status: ProductStatus) =>
+      (await http.patch<Product>(`/products/${id}/status`, { status })).data,
     remove: async (id: string) => {
       await http.delete(`/products/${id}`);
     },

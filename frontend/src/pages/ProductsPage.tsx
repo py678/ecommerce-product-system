@@ -27,6 +27,8 @@ import { ProductListFilters } from '../components/ProductListFilters';
 import { readProductQuery, productQueryErrors } from './product-list-query';
 import { RequestError } from '../components/PageFeedback';
 import { ProductFormModal } from '../components/ProductFormModal';
+import { ProductStatusAction } from '../components/ProductStatusAction';
+import { ProductStatusTag } from '../components/ProductStatusTag';
 import { ManagementPageHeading } from '../components/ManagementPageHeading';
 import { formatMoney, formatTime } from '../utils/format';
 
@@ -153,6 +155,12 @@ export function ProductsPage() {
       ),
     },
     {
+      title: '上下架状态',
+      key: 'status',
+      width: 110,
+      render: (_value, item) => <ProductStatusTag status={item.status} />,
+    },
+    {
       title: '所属用户',
       key: 'user',
       width: 140,
@@ -176,13 +184,24 @@ export function ProductsPage() {
       title: '操作',
       key: 'actions',
       fixed: 'right',
-      width: 180,
+      width: 230,
       render: (_value, item) => {
         const editable = canManageProduct(user, item.userId, 'product:update');
         const removable = canManageProduct(user, item.userId, 'product:delete');
         return (
           <Space size={2}>
             <Link to={`/products/${item.id}`}>详情</Link>
+            {editable && (
+              <ProductStatusAction
+                product={item}
+                compact
+                onChanged={() => {
+                  if (data?.list.length === 1 && query.page > 1 && query.status)
+                    setQuery({ ...query, page: query.page - 1 });
+                  else refresh();
+                }}
+              />
+            )}
             {editable && (
               <Button
                 type="link"
@@ -272,7 +291,7 @@ export function ProductsPage() {
           columns={columns}
           dataSource={error || invalid ? [] : (data?.list ?? [])}
           loading={loading || debouncing}
-          scroll={{ x: 1160 }}
+          scroll={{ x: 1320 }}
           locale={{
             emptyText: (
               <Empty
@@ -285,7 +304,8 @@ export function ProductsPage() {
                           query.categoryId ||
                           query.minPrice ||
                           query.maxPrice ||
-                          query.stockStatus
+                          query.stockStatus ||
+                          query.status
                         ? '没有找到符合条件的商品'
                         : '暂无可访问的商品'
                 }

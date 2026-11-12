@@ -71,6 +71,8 @@ export interface Category {
   updatedAt: string;
 }
 
+export type ProductStatus = 'PUBLISHED' | 'OFFLINE';
+
 export interface Product {
   id: string;
   name: string;
@@ -79,6 +81,7 @@ export interface Product {
   price: string;
   stock: number;
   stockVersion: number;
+  status: ProductStatus;
   categoryId: string;
   userId: string;
   category: { id: string; name: string };
@@ -165,6 +168,7 @@ export interface ProductListQuery {
   minPrice?: string;
   maxPrice?: string;
   stockStatus?: 'zero' | 'low' | 'normal';
+  status?: ProductStatus;
   sortBy: 'price' | 'stock' | 'createdAt' | 'updatedAt';
   sortOrder: 'asc' | 'desc';
 }

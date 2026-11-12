@@ -1,5 +1,9 @@
 # 数据库设计与本地启动
 
+## 商品上下架状态
+
+`products.status` 为非空 `ProductStatus` 枚举，值为 PUBLISHED/OFFLINE，默认 PUBLISHED；索引 `(status, created_at)` 支持状态筛选。增量迁移 `20261112091212_product_status` 为已有行提供默认值，不重写库存或订单快照，不改角色授权及 tokenVersion。同步桥复制该列，仍只允许主库写商品。
+
 ## 库存流水表
 
 `stock_movements` 保存 productId/商品名称/ownerId（归属快照）、变动类型、beforeStock/quantityChange/afterStock、库存版本、操作人和订单快照、原因、唯一业务键和发生时间。没有指向商品/账号的级联外键，删除后仍可追溯；UUID 不复用。`product_id + stock_version` 与 operation_key 各有唯一索引；库存非负、算式平衡、类型方向与订单关联由 CHECK 保护。UPDATE/DELETE/TRUNCATE 被触发器拒绝。主副本写保护与同步捕获沿用订单规则。
@@ -97,6 +101,7 @@ erDiagram
     varchar cover_image
     decimal price
     int stock
+    ProductStatus status
     timestamptz created_at
     timestamptz updated_at
   }

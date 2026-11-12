@@ -14,7 +14,11 @@ import {
 import { CommerceAuthorityService } from '../commerce/commerce.module.js';
 import { writeStockMovement } from '../stock-movements/stock-movement.writer.js';
 import { DatabaseService } from '../database/database.service.js';
-import { Prisma, OrderStatus } from '../generated/prisma/client.js';
+import {
+  Prisma,
+  OrderStatus,
+  ProductStatus,
+} from '../generated/prisma/client.js';
 import {
   RealtimeService,
   notifyResourceChange,
@@ -188,6 +192,8 @@ export class OrdersService {
         const snapshots = items.map((i) => {
           const p = products.find((p) => p.id === i.productId);
           if (!p) throw new ConflictException('商品已不可用，请重新选择');
+          if (p.status !== ProductStatus.PUBLISHED)
+            throw new ConflictException('商品已下架，请重新选择');
           if (p.stock < i.quantity) throw new ConflictException('商品库存不足');
           return {
             productId: p.id,
@@ -200,7 +206,11 @@ export class OrdersService {
         });
         for (const i of items) {
           const changed = await tx.product.updateMany({
-            where: { id: i.productId, stock: { gte: i.quantity } },
+            where: {
+              id: i.productId,
+              status: ProductStatus.PUBLISHED,
+              stock: { gte: i.quantity },
+            },
             data: { stock: { decrement: i.quantity } },
           });
           if (changed.count !== 1) throw new ConflictException('商品库存不足');

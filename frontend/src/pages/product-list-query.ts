@@ -18,6 +18,7 @@ export function readProductQuery(params: URLSearchParams): ProductListQuery {
   };
   const sortBy = params.get('sortBy');
   const stockStatus = params.get('stockStatus');
+  const status = params.get('status');
   return {
     page: integer('page', 1, 1000000),
     pageSize: integer('pageSize', 10, 100),
@@ -26,6 +27,7 @@ export function readProductQuery(params: URLSearchParams): ProductListQuery {
     minPrice: params.get('minPrice') ?? undefined,
     maxPrice: params.get('maxPrice') ?? undefined,
     stockStatus: stockStatuses.find((value) => value === stockStatus),
+    status: status === 'PUBLISHED' || status === 'OFFLINE' ? status : undefined,
     sortBy: productSortFields.find((value) => value === sortBy) ?? 'createdAt',
     sortOrder: params.get('sortOrder') === 'asc' ? 'asc' : 'desc',
   };

@@ -1,5 +1,6 @@
 import { Transform } from 'class-transformer';
 import {
+  IsEnum,
   IsInt,
   IsString,
   IsUUID,
@@ -13,6 +14,13 @@ import {
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import { IsCoverImageUrl } from './cover-image.validator.js';
 import { PageMetadataDto } from '../../common/dto/pagination.dto.js';
+import { ProductStatus } from '../../generated/prisma/client.js';
+
+export class UpdateProductStatusDto {
+  @ApiProperty({ enum: ProductStatus, example: 'OFFLINE' })
+  @IsEnum(ProductStatus)
+  status: ProductStatus;
+}
 
 export class CreateProductDto {
   @ApiProperty({ example: 'USB-C 充电器', minLength: 1, maxLength: 200 })
@@ -116,6 +124,9 @@ class ProductUserDto {
 }
 
 export class ProductResponseDto {
+  @ApiProperty({ enum: ProductStatus, default: 'PUBLISHED' })
+  status: ProductStatus;
+
   @ApiProperty({ format: 'uuid' })
   id: string;
 

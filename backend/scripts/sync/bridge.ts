@@ -39,6 +39,7 @@ const columns = {
     'price',
     'stock',
     'stock_version',
+    'status',
     'created_at',
     'updated_at',
   ],
