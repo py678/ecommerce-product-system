@@ -99,7 +99,6 @@ export function ProductsPage() {
       title: '商品',
       dataIndex: 'name',
       key: 'name',
-      width: 260,
       render: (name: string, item) => (
         <div className="product-cell">
           <span className="product-symbol">
@@ -119,7 +118,7 @@ export function ProductsPage() {
     {
       title: '分类',
       key: 'category',
-      width: 145,
+      width: 100,
       render: (_value, item) => (
         <Tag className="category-tag" title={item.category.name}>
           {item.category.name}
@@ -130,7 +129,7 @@ export function ProductsPage() {
       title: '价格',
       dataIndex: 'price',
       key: 'price',
-      width: 150,
+      width: 85,
       render: (value: string) => (
         <span className="money">{formatMoney(value)}</span>
       ),
@@ -139,7 +138,7 @@ export function ProductsPage() {
       title: '库存',
       dataIndex: 'stock',
       key: 'stock',
-      width: 110,
+      width: 75,
       render: (stock: number) => (
         <Tag
           color={
@@ -157,13 +156,14 @@ export function ProductsPage() {
     {
       title: '上下架状态',
       key: 'status',
-      width: 110,
+      width: 90,
       render: (_value, item) => <ProductStatusTag status={item.status} />,
     },
     {
       title: '所属用户',
       key: 'user',
-      width: 140,
+      width: 95,
+      ellipsis: true,
       render: (_value, item) => (
         <span>
           {item.user.username}
@@ -175,7 +175,7 @@ export function ProductsPage() {
       title: '更新时间',
       dataIndex: 'updatedAt',
       key: 'updatedAt',
-      width: 175,
+      width: 155,
       render: (value: string) => (
         <span className="muted">{formatTime(value)}</span>
       ),
@@ -183,12 +183,12 @@ export function ProductsPage() {
     {
       title: '操作',
       key: 'actions',
-      width: 230,
+      width: 170,
       render: (_value, item) => {
         const editable = canManageProduct(user, item.userId, 'product:update');
         const removable = canManageProduct(user, item.userId, 'product:delete');
         return (
-          <Space size={2}>
+          <Space className="product-table-actions" size={4}>
             <Link to={`/products/${item.id}`}>详情</Link>
             {editable && (
               <ProductStatusAction
@@ -286,11 +286,12 @@ export function ProductsPage() {
           商品目录 <span>{data?.total ?? '—'} 件商品</span>
         </div>
         <Table<Product>
+          className="product-list-table"
+          tableLayout="fixed"
           rowKey="id"
           columns={columns}
           dataSource={error || invalid ? [] : (data?.list ?? [])}
           loading={loading || debouncing}
-          scroll={{ x: 1320 }}
           locale={{
             emptyText: (
               <Empty

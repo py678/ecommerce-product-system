@@ -595,6 +595,32 @@ p {
 .catalog-card .ant-table-cell {
   overflow-wrap: anywhere;
 }
+.product-list-table .ant-table-thead > tr > th,
+.product-list-table .ant-table-tbody > tr > td {
+  padding-inline: 8px;
+}
+.product-list-table .product-cell {
+  gap: 8px;
+}
+.product-list-table .product-cell > div {
+  min-width: 0;
+}
+.product-list-table .product-name {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.product-list-table .category-tag {
+  max-width: 100%;
+  margin-inline-end: 0;
+}
+.product-table-actions {
+  white-space: nowrap;
+}
+.product-table-actions .ant-btn {
+  padding-inline: 4px;
+}
 
 /* Product filters wrap without changing category list layout. */
 .product-list-toolbar {
