@@ -4,7 +4,7 @@
 
 ## 已确认口径
 
-- 不新增 status，不提供状态筛选；分类为扁平结构。
+- 初版筛选不含 status；后续商品上下架功能已增加可选 `status=PUBLISHED/OFFLINE` 筛选，并与其他条件组合、保存到 URL。分类仍为扁平结构，仅匹配当前分类。当前契约以 Swagger 和 [API 文档](api.md) 为准。
 - LOW_STOCK_THRESHOLD 默认 6，可在进程环境配置；zero: stock = 0；low: 0 < stock < 阈值；normal: stock >= 阈值。配置必须是 1–2147483647 的整数。Docker Compose 将根目录配置传入后端。
 - 价格非空；上下限为 Decimal 字符串、闭区间，允许单边区间。
 - 新 name 优先于 deprecated search；返回 list，保留 deprecated items、totalPages。
@@ -17,27 +17,27 @@
 
 ## 文件清单
 
-| 文件 | 作用 |
-| --- | --- |
-| backend/src/products/dto/product-query.dto.ts（新增） | 商品专用查询 DTO、枚举、价格区间校验及 Swagger 参数 |
-| backend/src/products/product-list-query.ts（新增） | 组合条件、排序字段白名单映射、id 稳定排序 |
-| backend/src/products/products.config.ts（新增） | 读取并验证全局低库存阈值 |
-| backend/src/products/dto/product.dto.ts | 导出查询 DTO，增加 list、兼容字段弃用标记与阈值元数据 |
-| backend/src/products/products.service.ts | 接入组合查询，返回新旧列表和阈值，保留快照分页 |
-| backend/src/products/products.controller.ts | 更新列表 Swagger 说明 |
-| backend/prisma/schema.prisma | 增加查询索引声明 |
-| backend/prisma/migrations/20261103023330_product_list_filter_indexes/migration.sql（新增） | 三个非破坏性 CREATE INDEX |
-| backend/.env.example、.env.example、docker-compose.yml | 阈值示例、比较符注释及容器配置 |
-| frontend/src/components/ProductListFilters.tsx（新增） | 名称、分类、价格、库存、排序控件及字段错误 |
-| frontend/src/pages/product-list-query.ts（新增） | URL 参数读取与前端金额校验 |
-| frontend/src/pages/ProductsPage.tsx | URL 驱动列表、300ms 防抖、list 消费、库存标签阈值及反馈 |
-| frontend/src/api/types.ts、frontend/src/api/client.ts | 商品查询和响应类型；分类客户端约定不变 |
-| frontend/src/index.css | 仅针对商品筛选栏的响应式布局 |
-| backend/test/product-query.spec.ts（新增） | 查询校验、组合条件、排序映射与配置单测 |
-| backend/test/product-filters.e2e-spec.ts（新增） | 真实 PostgreSQL 的 HTTP 查询及 OpenAPI 验证 |
-| backend/vitest.config.e2e.ts | 将新增单测纳入后端测试命令 |
-| frontend/e2e/product-filters.spec.ts（新增） | 浏览器请求、URL、刷新、历史导航、错误和加载反馈 |
-| docs/api.md、docs/database.md、docs/product-filters.md、README.md | 使用约定、索引与交付说明 |
+| 文件                                                                                       | 作用                                                    |
+| ------------------------------------------------------------------------------------------ | ------------------------------------------------------- |
+| backend/src/products/dto/product-query.dto.ts（新增）                                      | 商品专用查询 DTO、枚举、价格区间校验及 Swagger 参数     |
+| backend/src/products/product-list-query.ts（新增）                                         | 组合条件、排序字段白名单映射、id 稳定排序               |
+| backend/src/products/products.config.ts（新增）                                            | 读取并验证全局低库存阈值                                |
+| backend/src/products/dto/product.dto.ts                                                    | 导出查询 DTO，增加 list、兼容字段弃用标记与阈值元数据   |
+| backend/src/products/products.service.ts                                                   | 接入组合查询，返回新旧列表和阈值，保留快照分页          |
+| backend/src/products/products.controller.ts                                                | 更新列表 Swagger 说明                                   |
+| backend/prisma/schema.prisma                                                               | 增加查询索引声明                                        |
+| backend/prisma/migrations/20261103023330_product_list_filter_indexes/migration.sql（新增） | 三个非破坏性 CREATE INDEX                               |
+| backend/.env.example、.env.example、docker-compose.yml                                     | 阈值示例、比较符注释及容器配置                          |
+| frontend/src/components/ProductListFilters.tsx（新增）                                     | 名称、分类、价格、库存、排序控件及字段错误              |
+| frontend/src/pages/product-list-query.ts（新增）                                           | URL 参数读取与前端金额校验                              |
+| frontend/src/pages/ProductsPage.tsx                                                        | URL 驱动列表、300ms 防抖、list 消费、库存标签阈值及反馈 |
+| frontend/src/api/types.ts、frontend/src/api/client.ts                                      | 商品查询和响应类型；分类客户端约定不变                  |
+| frontend/src/index.css                                                                     | 仅针对商品筛选栏的响应式布局                            |
+| backend/test/product-query.spec.ts（新增）                                                 | 查询校验、组合条件、排序映射与配置单测                  |
+| backend/test/product-filters.e2e-spec.ts（新增）                                           | 真实 PostgreSQL 的 HTTP 查询及 OpenAPI 验证             |
+| backend/vitest.config.e2e.ts                                                               | 将新增单测纳入后端测试命令                              |
+| frontend/e2e/product-filters.spec.ts（新增）                                               | 浏览器请求、URL、刷新、历史导航、错误和加载反馈         |
+| docs/api.md、docs/database.md、docs/product-filters.md、README.md                          | 使用约定、索引与交付说明                                |
 
 ## 部署
 
