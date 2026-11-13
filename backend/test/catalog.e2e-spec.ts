@@ -502,10 +502,71 @@ describe.sequential('Catalog HTTP API (real PostgreSQL)', () => {
     },
   );
 
+  it('filters shared categories by product presence before pagination and keeps referenced-category protection', async () => {
+    const name = `${prefix}_presence_${randomUUID().slice(0, 8)}`;
+    const ids: string[] = [];
+    for (let i = 0; i < 3; i++) {
+      const created = await category({ name: name + '_' + i }).expect(201);
+      categoryIds.add(created.body.id);
+      ids.push(created.body.id);
+    }
+    const created = await product(validProduct({ categoryId: ids[0] })).expect(
+      201,
+    );
+    await request(app.getHttpServer())
+      .patch(`/api/products/${created.body.id}/status`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ status: 'OFFLINE' })
+      .expect(200);
+    const list = (params: object) =>
+      request(app.getHttpServer())
+        .get('/api/categories')
+        .set('Authorization', `Bearer ${otherToken}`)
+        .query({ search: name, ...params });
+    const all = await list({}).expect(200);
+    expect(all.body.total).toBe(3);
+    const withProducts = await list({ productPresence: 'with' }).expect(200);
+    expect(withProducts.body.total).toBe(1);
+    expect(withProducts.body.items.map((c: { id: string }) => c.id)).toEqual([
+      ids[0],
+    ]);
+    const empty = await list({
+      productPresence: 'without',
+      pageSize: 1,
+      page: 2,
+    }).expect(200);
+    expect(empty.body).toMatchObject({
+      total: 2,
+      totalPages: 2,
+      page: 2,
+      pageSize: 1,
+    });
+    expect(empty.body.items).toHaveLength(1);
+    expect(empty.body.items[0].productCount).toBe(0);
+    const none = await list({
+      search: name + '_missing',
+      productPresence: 'without',
+    }).expect(200);
+    expect(none.body).toMatchObject({ items: [], total: 0 });
+    await list({ productPresence: 'all' }).expect(400);
+    await list({ productPresence: 'without', creatorId: userIds[0] }).expect(
+      400,
+    );
+    await request(app.getHttpServer())
+      .delete(`/api/categories/${ids[0]}`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(409);
+  });
+
   it('publishes protected CRUD operations, response schemas and query parameters in Swagger', async () => {
     const response = await request(app.getHttpServer())
       .get('/docs-json')
       .expect(200);
+    const presence = response.body.paths['/api/categories'].get.parameters.find(
+      (parameter: { name: string }) => parameter.name === 'productPresence',
+    );
+    expect(presence.required).toBe(false);
+    expect(presence.schema.enum).toEqual(['with', 'without']);
     for (const resource of ['products', 'categories']) {
       for (const method of ['get', 'post']) {
         expect(

@@ -1,7 +1,27 @@
 import { Transform } from 'class-transformer';
-import { IsString, Length } from 'class-validator';
-import { ApiProperty, PartialType } from '@nestjs/swagger';
-import { PageMetadataDto } from '../../common/dto/pagination.dto.js';
+import { IsEnum, IsString, Length, ValidateIf } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
+import {
+  PageMetadataDto,
+  PaginationDto,
+} from '../../common/dto/pagination.dto.js';
+
+export enum CategoryProductPresence {
+  WITH = 'with',
+  WITHOUT = 'without',
+}
+
+export class CategoryQueryDto extends PaginationDto {
+  @ApiPropertyOptional({
+    enum: CategoryProductPresence,
+    description:
+      '关联商品：with 有商品，without 无商品；不传为全部，包含所有上下架状态商品',
+    example: 'without',
+  })
+  @ValidateIf((_object, value) => value !== undefined)
+  @IsEnum(CategoryProductPresence)
+  productPresence?: CategoryProductPresence;
+}
 
 export class CreateCategoryDto {
   @ApiProperty({ example: '数码配件', minLength: 1, maxLength: 120 })

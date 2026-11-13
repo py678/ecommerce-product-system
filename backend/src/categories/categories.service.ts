@@ -10,9 +10,9 @@ import {
 } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service.js';
 import { Prisma } from '../generated/prisma/client.js';
-import { PaginationDto } from '../common/dto/pagination.dto.js';
 import {
   CategoryPageDto,
+  CategoryQueryDto,
   CategoryResponseDto,
   CreateCategoryDto,
   UpdateCategoryDto,
@@ -46,10 +46,17 @@ export class CategoriesService {
     return response;
   }
 
-  async findAll(query: PaginationDto): Promise<CategoryPageDto> {
-    const where: Prisma.CategoryWhereInput = query.search
-      ? { name: { contains: query.search, mode: 'insensitive' } }
-      : {};
+  async findAll(query: CategoryQueryDto): Promise<CategoryPageDto> {
+    const where: Prisma.CategoryWhereInput = {
+      ...(query.search
+        ? { name: { contains: query.search, mode: 'insensitive' as const } }
+        : {}),
+      ...(query.productPresence === 'with'
+        ? { products: { some: {} } }
+        : query.productPresence === 'without'
+          ? { products: { none: {} } }
+          : {}),
+    };
     const [items, total] = await this.db.$transaction(
       [
         this.db.category.findMany({

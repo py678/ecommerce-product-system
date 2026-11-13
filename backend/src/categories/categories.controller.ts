@@ -28,10 +28,10 @@ import {
 import { PermissionsGuard } from '../auth/permissions.guard.js';
 import { RequirePermissions } from '../auth/permissions.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
-import { PaginationDto } from '../common/dto/pagination.dto.js';
 import { CategoriesService } from './categories.service.js';
 import {
   CategoryPageDto,
+  CategoryQueryDto,
   CategoryResponseDto,
   CreateCategoryDto,
   UpdateCategoryDto,
@@ -56,10 +56,10 @@ export class CategoriesController {
   }
 
   @Get()
-  @ApiOperation({ summary: '分页搜索分类' })
+  @ApiOperation({ summary: '分页搜索分类，可按有商品/无商品筛选' })
   @ApiOkResponse({ type: CategoryPageDto })
   @RequirePermissions('category:read')
-  findAll(@Query() query: PaginationDto) {
+  findAll(@Query() query: CategoryQueryDto) {
     return this.categories.findAll(query);
   }
 

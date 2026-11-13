@@ -158,6 +158,10 @@ export interface ListQuery {
   categoryId?: string;
 }
 
+export interface CategoryListQuery extends ListQuery {
+  productPresence?: 'with' | 'without';
+}
+
 export interface ProductListQuery {
   page: number;
   pageSize: number;

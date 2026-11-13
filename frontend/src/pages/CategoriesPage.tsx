@@ -11,6 +11,7 @@ import {
   Input,
   Modal,
   Popconfirm,
+  Select,
   Space,
   Table,
   Tag,
@@ -26,7 +27,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth';
 import { can } from '../auth/permissions';
 import { api, errorMessage } from '../api/client';
-import type { Category, ListQuery } from '../api/types';
+import type { Category, CategoryListQuery } from '../api/types';
 import { useResource } from '../hooks/useResource';
 import { RequestError } from '../components/PageFeedback';
 import { ManagementPageHeading } from '../components/ManagementPageHeading';
@@ -106,7 +107,10 @@ function CategoryModal({
 export function CategoriesPage() {
   const { user } = useAuth();
   const { message } = App.useApp();
-  const [query, setQuery] = useState<ListQuery>({ page: 1, pageSize: 20 });
+  const [query, setQuery] = useState<CategoryListQuery>({
+    page: 1,
+    pageSize: 20,
+  });
   const [search, setSearch] = useState('');
   const [modal, setModal] = useState<{ category?: Category } | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
@@ -259,6 +263,23 @@ export function CategoriesPage() {
             }
             enterButton="搜索"
           />
+          <Select
+            aria-label="关联商品筛选"
+            value={query.productPresence ?? ''}
+            style={{ width: 150 }}
+            options={[
+              { value: '', label: '全部' },
+              { value: 'with', label: '有商品' },
+              { value: 'without', label: '无商品' },
+            ]}
+            onChange={(value: '' | 'with' | 'without') =>
+              setQuery({
+                ...query,
+                page: 1,
+                productPresence: value || undefined,
+              })
+            }
+          />
           <Button
             aria-label="刷新"
             icon={<ReloadOutlined />}
@@ -275,14 +296,14 @@ export function CategoriesPage() {
         <Table<Category>
           rowKey="id"
           columns={columns}
-          dataSource={data?.items ?? []}
+          dataSource={error ? [] : (data?.items ?? [])}
           loading={loading}
           scroll={{ x: 780 }}
           locale={{
             emptyText: (
               <Empty
                 description={
-                  query.search
+                  query.search || query.productPresence
                     ? '没有找到符合条件的分类'
                     : '暂无分类，请联系管理员维护'
                 }

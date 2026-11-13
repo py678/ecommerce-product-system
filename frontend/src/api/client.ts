@@ -22,6 +22,7 @@ import type {
   UserRole,
   ImageUploadResponse,
   Category,
+  CategoryListQuery,
   ListQuery,
   Page,
   Product,
@@ -216,7 +217,7 @@ export const api = {
       (await http.get<User>('/auth/me', { signal })).data,
   },
   categories: {
-    list: async (params: ListQuery, signal?: AbortSignal) =>
+    list: async (params: CategoryListQuery, signal?: AbortSignal) =>
       (await http.get<Page<Category>>('/categories', { params, signal })).data,
     create: async (input: { name: string }) =>
       (await http.post<Category>('/categories', input)).data,
