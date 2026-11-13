@@ -2,6 +2,54 @@ import { randomUUID } from 'node:crypto';
 import { RealtimeService } from '../dist/realtime/realtime.service.js';
 import type { AccessTokenService } from '../dist/auth/access-token.service.js';
 import type { Socket } from 'socket.io';
+import { OrdersService } from '../dist/orders/orders.service.js';
+import type { Actor } from '../dist/auth/permissions.js';
+import type { DatabaseService } from '../dist/database/database.service.js';
+import type { CommerceAuthorityService } from '../dist/commerce/commerce.module.js';
+
+describe('Order date filters keep existing resource scope', () => {
+  it.each(['OWN', 'ALL'] as const)(
+    'combines date/search/status and reuses the same where for %s rows and total',
+    async (scope) => {
+      const findMany = vi.fn().mockResolvedValue([]);
+      const count = vi.fn().mockResolvedValue(0);
+      const db = {
+        order: { findMany, count },
+        $transaction: (queries: Promise<unknown>[]) => Promise.all(queries),
+      };
+      const service = new OrdersService(
+        db as unknown as DatabaseService,
+        {} as CommerceAuthorityService,
+        {} as RealtimeService,
+      );
+      const actor: Actor = {
+        id: 'owner-id',
+        role: 'CUSTOM',
+        permissions: ['order:read'],
+        dataScopes: { 'order:read': scope },
+      };
+      const result = await service.findAll(actor, {
+        page: 2,
+        pageSize: 10,
+        search: 'ORD-demo',
+        status: 'PENDING',
+        createdFrom: '2026-11-12T16:00:00.000Z',
+        createdTo: '2026-11-13T15:59:59.999Z',
+      });
+      const where = findMany.mock.calls[0][0].where;
+      expect(count.mock.calls[0][0].where).toBe(where);
+      expect(where.creatorId).toBe(scope === 'OWN' ? actor.id : undefined);
+      expect(where.status).toBe('PENDING');
+      expect(where.OR[0].orderNo.contains).toBe('ORD-demo');
+      expect(where.createdAt).toEqual({
+        gte: new Date('2026-11-12T16:00:00.000Z'),
+        lte: new Date('2026-11-13T15:59:59.999Z'),
+      });
+      expect(findMany.mock.calls[0][0]).toMatchObject({ skip: 10, take: 10 });
+      expect(result).toMatchObject({ list: [], total: 0, page: 2 });
+    },
+  );
+});
 
 describe('Order realtime privacy', () => {
   it('notifies only creator and admins without customer data; transport failure is isolated', () => {

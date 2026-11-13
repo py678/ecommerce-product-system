@@ -34,7 +34,11 @@ Swagger 页面：`http://localhost:3000/docs`；OpenAPI JSON：`http://localhost
 成功返回 HTTP 200：
 
 ```json
-{ "code": 0, "message": "ok", "data": { "url": "/uploads/96c01d96-53f3-4fb8-b761-923ab8fae3fe.png" } }
+{
+  "code": 0,
+  "message": "ok",
+  "data": { "url": "/uploads/96c01d96-53f3-4fb8-b761-923ab8fae3fe.png" }
+}
 ```
 
 缺少/无效 JWT 返回 401；缺少文件、类型不合法、多文件或错误字段返回 400；超出大小限制返回 413。返回的 `/uploads/**` 图片可直接访问，无需登录，请勿上传私密文件。
@@ -43,11 +47,11 @@ Swagger 页面：`http://localhost:3000/docs`；OpenAPI JSON：`http://localhost
 
 ## 认证接口
 
-| 方法与路径 | 请求 | 成功结果 |
-| --- | --- | --- |
+| 方法与路径          | 请求                                                                         | 成功结果                |
+| ------------------- | ---------------------------------------------------------------------------- | ----------------------- |
 | POST /auth/register | username、email、password、可选 role（OPERATOR/ADMIN）、管理员所需 companyId | 201；用户资料与访问令牌 |
-| POST /auth/login | username、password、可选 loginRole（OPERATOR/ADMIN） | 200；用户资料与访问令牌 |
-| GET /auth/me | Authorization: Bearer <accessToken> | 200；当前用户资料 |
+| POST /auth/login    | username、password、可选 loginRole（OPERATOR/ADMIN）                         | 200；用户资料与访问令牌 |
+| GET /auth/me        | Authorization: Bearer <accessToken>                                          | 200；当前用户资料       |
 
 在 Swagger 展开接口，点击 Try it out 填写请求；注册/登录成功后，复制响应中的 `accessToken`，在页面的 Authorize 中粘贴令牌即可调用 `/api/auth/me`。不要把令牌粘贴到提交记录或文档。
 
@@ -65,12 +69,12 @@ Swagger 页面：`http://localhost:3000/docs`；OpenAPI JSON：`http://localhost
 
 认证响应字段：`accessToken`、`tokenType`（Bearer）、`expiresIn`（秒）、`user`。用户资料仅包括 `id`、`username`、`email`、`role`、`permissions`、`createdAt`、`updatedAt`，不会返回密码或哈希。注册后自动登录，令牌默认有效一小时。
 
-| 状态码 | 含义 |
-| --- | --- |
-| 400 | 缺失/非法字段或额外字段；message 通常为验证消息数组 |
-| 401 | 用户名或密码错误；令牌缺失、错误、过期，或对应用户已删除 |
-| 409 | 用户名或归一化邮箱重复，并发注册也受数据库唯一约束保护 |
-| 429 | 注册超过每分钟 5 次或登录超过每分钟 10 次；按客户端地址及接口计数，含失败请求 |
+| 状态码 | 含义                                                                          |
+| ------ | ----------------------------------------------------------------------------- |
+| 400    | 缺失/非法字段或额外字段；message 通常为验证消息数组                           |
+| 401    | 用户名或密码错误；令牌缺失、错误、过期，或对应用户已删除                      |
+| 409    | 用户名或归一化邮箱重复，并发注册也受数据库唯一约束保护                        |
+| 429    | 注册超过每分钟 5 次或登录超过每分钟 10 次；按客户端地址及接口计数，含失败请求 |
 
 错误使用 Nest 标准 JSON：`statusCode`、`message`、`error`。登录失败对未知账号和错误密码统一提示。密码验证成功后，如可选 loginRole 与数据库角色不匹配，返回 401“账号角色与所选登录入口不匹配，请选择正确入口”，不签发凭证、不改变角色；非法枚举返回 400。登录页统一只提交用户名与密码；可选 loginRole 仅用于旧客户端兼容。限流为单进程内存存储，重启后清空；多实例部署时需更换共享存储。本项目目前使用本机直连，不信任客户端自行提供的转发地址头。
 
@@ -82,11 +86,11 @@ JWT 使用 HS256，只接受匹配本系统 issuer/audience、包含有效用户
 
 以下路径均包含全局 `/api` 前缀，必须提供 Bearer JWT。用户 ID 仅取自已验证凭证，不接受任何查询参数；请求 body 通过 DTO 白名单验证，额外字段返回 400。
 
-| 方法与路径 | 请求 | 成功响应 |
-| --- | --- | --- |
-| GET /users/me | 无 | 200；id、username、email、role、permissions、createdAt、updatedAt |
-| PATCH /users/me | `{ "email": "new@example.com" }` | 200；更新后的公开资料 |
-| PATCH /users/me/password | `{ "oldPassword": "Original-password-123!", "newPassword": "Changed-password-456!" }` | 200；`{ "message": "密码已修改，请重新登录" }`，不返回新凭证 |
+| 方法与路径               | 请求                                                                                  | 成功响应                                                          |
+| ------------------------ | ------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| GET /users/me            | 无                                                                                    | 200；id、username、email、role、permissions、createdAt、updatedAt |
+| PATCH /users/me          | `{ "email": "new@example.com" }`                                                      | 200；更新后的公开资料                                             |
+| PATCH /users/me/password | `{ "oldPassword": "Original-password-123!", "newPassword": "Changed-password-456!" }` | 200；`{ "message": "密码已修改，请重新登录" }`，不返回新凭证      |
 
 邮箱是首版唯一可编辑字段，去除首尾空白并转小写，最长 254 字符，必须为合法邮箱；数据库唯一约束冲突（含并发冲突）返回 409。username、role、status、password、passwordHash、tokenVersion、userId、nickname、avatar 等不在资料更新白名单中，空 body 返回 400。
 
@@ -117,13 +121,13 @@ JWT 使用 HS256，只接受匹配本系统 issuer/audience、包含有效用户
 
 以下接口均需 Bearer 令牌。分类为全后台共享，所有角色均可查看，仅管理员可以维护；不实现分类层级。
 
-| 方法与路径 | 用途 | 成功结果 |
-| --- | --- | --- |
-| POST /categories | 创建，body 为 `{ "name": "数码配件" }` | 201；分类资料 |
-| GET /categories | 分页列表、名称搜索 | 200；分页结果 |
-| GET /categories/{id} | 查看分类 | 200；分类资料及 productCount |
-| PATCH /categories/{id} | 修改 name | 200；更新后的分类 |
-| DELETE /categories/{id} | 删除未引用分类 | 204，无响应正文 |
+| 方法与路径              | 用途                                   | 成功结果                     |
+| ----------------------- | -------------------------------------- | ---------------------------- |
+| POST /categories        | 创建，body 为 `{ "name": "数码配件" }` | 201；分类资料                |
+| GET /categories         | 分页列表、名称搜索                     | 200；分页结果                |
+| GET /categories/{id}    | 查看分类                               | 200；分类资料及 productCount |
+| PATCH /categories/{id}  | 修改 name                              | 200；更新后的分类            |
+| DELETE /categories/{id} | 删除未引用分类                         | 204，无响应正文              |
 
 名称先 trim，长度 1–120 字符，不允许空白或 null。PATCH 不接受空对象或额外字段。分类名称目前不限制唯一。不存在的分类返回 404；分类下有任何商品（含其他用户商品）时，数据库外键阻止删除并返回 409，需先调整关联商品。
 
@@ -131,13 +135,13 @@ JWT 使用 HS256，只接受匹配本系统 issuer/audience、包含有效用户
 
 所有商品接口均需 Bearer 令牌。所有登录角色均可查看全部商品列表和详情；运营人员可创建并管理自己的商品，管理员可管理全部商品。创建者从令牌确定，包括管理员创建商品时也固定为当前账号；编辑他人商品不改变归属。客户端不能指定或修改 userId、creatorId、role。列表与总数统计强制共用同一份筛选 where，不按创建者限制读取范围。
 
-| 方法与路径 | 用途 | 成功结果 |
-| --- | --- | --- |
-| POST /products | 创建商品 | 201；商品详情 |
-| GET /products | 名称、分类、价格、库存组合筛选与排序 | 200；分页结果 |
-| GET /products/{id} | 查看商品详情 | 200；商品详情 |
-| PATCH /products/{id} | 按角色范围部分修改商品 | 200；更新后的商品 |
-| DELETE /products/{id} | 按角色范围删除商品 | 204，无响应正文 |
+| 方法与路径            | 用途                                 | 成功结果          |
+| --------------------- | ------------------------------------ | ----------------- |
+| POST /products        | 创建商品                             | 201；商品详情     |
+| GET /products         | 名称、分类、价格、库存组合筛选与排序 | 200；分页结果     |
+| GET /products/{id}    | 查看商品详情                         | 200；商品详情     |
+| PATCH /products/{id}  | 按角色范围部分修改商品               | 200；更新后的商品 |
+| DELETE /products/{id} | 按角色范围删除商品                   | 204，无响应正文   |
 
 先创建分类，复制返回的 UUID，再提交商品：
 
@@ -163,18 +167,18 @@ PATCH 只能提交 name、description、coverImage、price、stock、categoryId 
 
 商品列表 `GET /api/products` 的所有筛选可组合，均为可选：
 
-| 参数 | 类型与规则 | 示例/默认值 |
-| --- | --- | --- |
-| page | 整数，1–1000000 | 默认 1 |
-| pageSize | 整数，1–100 | 默认 **10**；前端显式传递 |
-| name | trim 后 1–200 字符，名称模糊匹配，大小写不敏感 | `充电器` |
-| search | **deprecated**，旧名称查询，trim 后 1–100 字符；同传时 name 优先 | `充电器` |
-| categoryId | 分类 UUID；扁平结构，仅当前分类 | 实际 UUID |
-| minPrice | 非负金额字符串，最多 10 位整数、2 位小数；价格 **>=** 此值 | `10.00` |
-| maxPrice | 格式同 minPrice，价格 **<=** 此值；同传时必须 >= minPrice | `100.00` |
-| stockStatus | `zero`：stock **= 0**；`low`：stock **> 0 且 < LOW_STOCK_THRESHOLD**；`normal`：stock **>= LOW_STOCK_THRESHOLD** | 全局阈值默认 6 |
-| sortBy | 白名单 `price / stock / createdAt / updatedAt` | 默认 createdAt |
-| sortOrder | `asc / desc`，id 的方向跟随主字段 | 默认 desc |
+| 参数        | 类型与规则                                                                                                       | 示例/默认值               |
+| ----------- | ---------------------------------------------------------------------------------------------------------------- | ------------------------- |
+| page        | 整数，1–1000000                                                                                                  | 默认 1                    |
+| pageSize    | 整数，1–100                                                                                                      | 默认 **10**；前端显式传递 |
+| name        | trim 后 1–200 字符，名称模糊匹配，大小写不敏感                                                                   | `充电器`                  |
+| search      | **deprecated**，旧名称查询，trim 后 1–100 字符；同传时 name 优先                                                 | `充电器`                  |
+| categoryId  | 分类 UUID；扁平结构，仅当前分类                                                                                  | 实际 UUID                 |
+| minPrice    | 非负金额字符串，最多 10 位整数、2 位小数；价格 **>=** 此值                                                       | `10.00`                   |
+| maxPrice    | 格式同 minPrice，价格 **<=** 此值；同传时必须 >= minPrice                                                        | `100.00`                  |
+| stockStatus | `zero`：stock **= 0**；`low`：stock **> 0 且 < LOW_STOCK_THRESHOLD**；`normal`：stock **>= LOW_STOCK_THRESHOLD** | 全局阈值默认 6            |
+| sortBy      | 白名单 `price / stock / createdAt / updatedAt`                                                                   | 默认 createdAt            |
+| sortOrder   | `asc / desc`，id 的方向跟随主字段                                                                                | 默认 desc                 |
 
 价格为非空字段，无空价格分支；区间为闭区间，可单独传上下限。不增加 status 字段或状态筛选。金额比较使用数据库 Decimal。未知字段、非法枚举、重复参数数组、格式错误、颠倒价格区间和超限分页返回 400。
 
@@ -190,20 +194,18 @@ PATCH 只能提交 name、description、coverImage、price、stock、categoryId 
 
 商品/分类新增 59 项 HTTP 测试，覆盖 CRUD、鉴权、归属、分页、过滤、金额精度及边界、非法输入、引用删除和 Swagger。连同原有测试，共 79 项 HTTP 测试、两组数据库回归通过。测试会自动清理自身随机生成的记录，不清空业务库。
 
-
 ## 管理员账号与角色权限
 
 公开用户资料（登录/注册、auth/me、users/me、账号管理）新增只读 role、roleId、roleName、permissions、dataScopes，不返回 passwordHash 或 tokenVersion。默认角色为 OPERATOR（运营人员）、ADMIN（管理员），可新增自定义角色。注册支持 role，默认 OPERATOR；ADMIN 必须通过公司内部 ID 验证；个人资料中夹带 role 仍返回 400。权限矩阵见 [角色权限说明](rbac.md)。Swagger 的业务操作带 x-permissions 标记；JWT 之后由 PermissionsGuard 校验。
 
-| 方法与路径（包含 /api 前缀） | 参数 | 返回与权限 |
-| --- | --- | --- |
-| GET /api/admin/users | page 默认 1、pageSize 默认 20/上限 100、search 用户名或邮箱模糊搜索、roleId UUID 筛选（旧 role 编码兼容） | 200，items/total/page/pageSize/totalPages；user:read |
-| PATCH /api/admin/users/{id}/role | UUID 路径；body 为 { roleId }，旧 role 编码兼容，两者仅传一个 | 200，公开用户资料；user:assign-role |
+| 方法与路径（包含 /api 前缀）     | 参数                                                                                                      | 返回与权限                                           |
+| -------------------------------- | --------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| GET /api/admin/users             | page 默认 1、pageSize 默认 20/上限 100、search 用户名或邮箱模糊搜索、roleId UUID 筛选（旧 role 编码兼容） | 200，items/total/page/pageSize/totalPages；user:read |
+| PATCH /api/admin/users/{id}/role | UUID 路径；body 为 { roleId }，旧 role 编码兼容，两者仅传一个                                             | 200，公开用户资料；user:assign-role                  |
 
 账号列表与总数使用相同筛选条件及 Repeatable Read 快照。角色修改禁止自改、无变化、非法枚举及额外字段（400）；目标不存在 404，最后管理员保护返回 409。角色变化、tokenVersion 递增与 role_audits 写入同一事务；数据库事务锁串行化该库内的角色调整，并在锁内重新校验操作者仍有分配权限且不越级。审计失败时全部回滚。不返回新 token，目标账号下一次受保护请求返回 401 后必须重新登录。
 
 上传要求 upload:image（运营人员、管理员）。个人中心不需要额外权限点，但只操作 JWT 当前账号。所有业务 DTO 复用严格白名单，非契约字段返回 400；注册 DTO 接受 role 与只写 companyId；已有用户的角色仅允许通过管理员接口的 AssignRoleDto 修改。
-
 
 ## 两角色注册
 
@@ -217,32 +219,34 @@ REST 路由、DTO、权限点及 Swagger 契约保持不变。Socket.IO 使用�
 
 完整契约见 Swagger 的“订单”分组和 [订单规格](orders.md)。所有接口带 Bearer JWT；普通运营仅自己的订单、管理员全部。列表与 count 共用相同 where。
 
-| 方法 | 路径（前缀 /api） | 作用 |
-| --- | --- | --- |
-| POST | /orders | 带 UUID idempotencyKey 创建；1–50种不同商品，仅传商品ID/数量，金额服务端计算 |
-| GET | /orders | page=1/pageSize=10(≤100)、search、status、createdFrom/createdTo，返回list/total/page/pageSize |
-| GET | /orders/:id | 详情、成交快照与操作日志；不返回幂等键/请求指纹 |
-| PATCH | /orders/:id/confirm | 空对象；创建人/管理员手动确认待确认订单，不代表支付 |
-| PATCH | /orders/:id/ship | carrier、trackingNo；仅已确认订单 |
-| PATCH | /orders/:id/complete | 空对象；仅已发货订单 |
-| PATCH | /orders/:id/cancel | reason；仅待确认/已确认可取消并回补一次 |
+| 方法  | 路径（前缀 /api）    | 作用                                                                                          |
+| ----- | -------------------- | --------------------------------------------------------------------------------------------- |
+| POST  | /orders              | 带 UUID idempotencyKey 创建；1–50种不同商品，仅传商品ID/数量，金额服务端计算                  |
+| GET   | /orders              | page=1/pageSize=10(≤100)、search、status、createdFrom/createdTo，返回list/total/page/pageSize |
+| GET   | /orders/:id          | 详情、成交快照与操作日志；不返回幂等键/请求指纹                                               |
+| PATCH | /orders/:id/confirm  | 空对象；创建人/管理员手动确认待确认订单，不代表支付                                           |
+| PATCH | /orders/:id/ship     | carrier、trackingNo；仅已确认订单                                                             |
+| PATCH | /orders/:id/complete | 空对象；仅已发货订单                                                                          |
+| PATCH | /orders/:id/cancel   | reason；仅待确认/已确认可取消并回补一次                                                       |
 
 金额为两位小数字符串。错误：400校验、401认证、403权限、404不存在或越权、409库存/状态/幂等冲突、503副本只读。DTO严格白名单，不能传creatorId、role、status、单价或金额。商品PATCH提交stock必须同时提交读取时stockVersion，过期409；被订单引用的商品DELETE返回409。
+
+订单日期筛选补充：`GET /api/orders` 的 `createdFrom`、`createdTo` 为可选 ISO8601 时间，分别以 `createdAt >= createdFrom`、`createdAt <= createdTo` 查询，支持单侧边界。与 `search`、`status` 及既有 OWN/ALL 范围同时生效，列表与 total 共用 where。非法日期或反向区间返回 400。前端“今天”“本周”按浏览器本地日历换算后发送 ISO 时间（本周周一至周日），不新增接口参数。
 
 ## 可配置角色接口
 
 所有接口需 JWT 与对应权限；数据只接受严格 DTO 白名单。公开 role 为自定义编码字符串，roleId 为 UUID；roleName 为显示名，dataScopes 按具体权限返回 OWN/ALL。
 
-| 方法 | /api 路径 | 权限 / 说明 |
-| --- | --- | --- |
-| GET | /admin/roles/permissions | role:read；固定目录，code/name/module/scoped |
-| GET | /admin/roles/options | user:read；启用角色的 id/code/name |
-| GET | /admin/roles | role:read；page=1、pageSize=20（≤100）、search；items/total/page/pageSize |
-| POST | /admin/roles | role:create；code/name/description?/grants[{permission,scope}]，201 |
-| GET | /admin/roles/:id | role:read；详情及 version、userCount、grants |
-| PATCH | /admin/roles/:id | role:update；必传 version，可更新 name/description/enabled/grants；200 |
-| DELETE | /admin/roles/:id | role:delete；无用户的自定义角色，204 |
-| GET | /admin/roles/:id/audits | role:read；分页审计，删除后保留 |
+| 方法   | /api 路径                | 权限 / 说明                                                               |
+| ------ | ------------------------ | ------------------------------------------------------------------------- |
+| GET    | /admin/roles/permissions | role:read；固定目录，code/name/module/scoped                              |
+| GET    | /admin/roles/options     | user:read；启用角色的 id/code/name                                        |
+| GET    | /admin/roles             | role:read；page=1、pageSize=20（≤100）、search；items/total/page/pageSize |
+| POST   | /admin/roles             | role:create；code/name/description?/grants[{permission,scope}]，201       |
+| GET    | /admin/roles/:id         | role:read；详情及 version、userCount、grants                              |
+| PATCH  | /admin/roles/:id         | role:update；必传 version，可更新 name/description/enabled/grants；200    |
+| DELETE | /admin/roles/:id         | role:delete；无用户的自定义角色，204                                      |
+| GET    | /admin/roles/:id/audits  | role:read；分页审计，删除后保留                                           |
 
 错误：400 非法字段/权限依赖/系统角色保护，401 凭证失效或角色停用，403 缺权限或越级授予，404 角色不存在，409 角色编码/版本/引用冲突，503 副本拒绝写配置和业务认证。用户分配和角色配置都撤销旧凭证，不返回新 token。完整规则见 [RBAC](rbac.md)。
 
@@ -250,13 +254,13 @@ REST 路由、DTO、权限点及 Swagger 契约保持不变。Socket.IO 使用�
 
 以下路径均含 `/api` 前缀，需 Bearer JWT，DTO 严格拒绝额外字段。新增权限初始仅授予系统管理员。
 
-| 方法 | 路径 | 权限及契约 |
-| --- | --- | --- |
-| GET | /admin/users | user:read；status=active（默认）或 deleted；原搜索、角色、分页参数保留，列表与 total 同条件 |
-| DELETE | /admin/users/:id | user:delete；`{ reason }`，软删除并撤销会话，200 |
-| POST | /admin/users/:id/restore | user:restore；`{ reason }`，恢复原角色、递增凭证版本，200 |
-| GET | /admin/users/:id/dependencies | user:purge 且系统 ADMIN；返回 productCount、orderCount（所有状态）、canPurge；200 |
-| DELETE | /admin/users/:id/purge | user:purge 且系统 ADMIN；`{ username, reason }`，精确确认用户名，目标已删除且无商品/订单，200 |
+| 方法   | 路径                          | 权限及契约                                                                                    |
+| ------ | ----------------------------- | --------------------------------------------------------------------------------------------- |
+| GET    | /admin/users                  | user:read；status=active（默认）或 deleted；原搜索、角色、分页参数保留，列表与 total 同条件   |
+| DELETE | /admin/users/:id              | user:delete；`{ reason }`，软删除并撤销会话，200                                              |
+| POST   | /admin/users/:id/restore      | user:restore；`{ reason }`，恢复原角色、递增凭证版本，200                                     |
+| GET    | /admin/users/:id/dependencies | user:purge 且系统 ADMIN；返回 productCount、orderCount（所有状态）、canPurge；200             |
+| DELETE | /admin/users/:id/purge        | user:purge 且系统 ADMIN；`{ username, reason }`，精确确认用户名，目标已删除且无商品/订单，200 |
 
 reason 去除首尾空白后 1–500 字符，禁止填写凭据。账号列表额外返回 deletedAt/deletedBy/deleteReason（正常账号为 null），公开登录/个人资料响应不增加这些内部管理字段。不能自删；重复删除/恢复、最后有效管理员、关联冲突返回 409，确认用户名不匹配及非法字段 400，缺权限或越级操作 403，不存在 404，副本写入 503。
 

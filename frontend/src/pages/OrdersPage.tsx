@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { Button, Card, Input, Select, Space, Table, Tag } from 'antd';
+import { Alert, Button, Card, Input, Select, Space, Table, Tag } from 'antd';
 import { PlusOutlined, ReloadOutlined } from '@ant-design/icons';
 import { ManagementPageHeading } from '../components/ManagementPageHeading';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -30,8 +30,18 @@ export function OrdersPage() {
   const [params, setParams] = useSearchParams();
   const { user } = useAuth();
   const raw = params.toString();
+  const from = params.get('createdFrom');
+  const to = params.get('createdTo');
+  const dateError =
+    (from && Number.isNaN(new Date(from).getTime())) ||
+    (to && Number.isNaN(new Date(to).getTime()))
+      ? '创建日期格式无效，请重新选择日期'
+      : from && to && new Date(from) > new Date(to)
+        ? '开始日期不能晚于结束日期'
+        : undefined;
   const load = useCallback(
     (signal: AbortSignal) => {
+      if (dateError) return Promise.reject(new Error(dateError));
       const p = new URLSearchParams(raw);
       const positive = (s: string | null, f: number, max: number) =>
         /^\d+$/.test(s ?? '') ? Math.min(max, Math.max(1, Number(s))) : f;
@@ -49,7 +59,7 @@ export function OrdersPage() {
       };
       return api.orders.list(query, signal);
     },
-    [raw],
+    [raw, dateError],
   );
   const { data, loading, error, refresh } = useResource(load);
   useRealtimeRefresh(refresh, { orders: true });
@@ -61,6 +71,17 @@ export function OrdersPage() {
     }
     if (reset) p.set('page', '1');
     setParams(p);
+  };
+  const selectPeriod = (period: 'today' | 'week') => {
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    if (period === 'week')
+      start.setDate(start.getDate() - ((start.getDay() + 6) % 7));
+    const end = new Date(start);
+    if (period === 'week') end.setDate(end.getDate() + 6);
+    end.setHours(23, 59, 59, 999);
+    // Use local calendar dates, then send explicit UTC instants to the existing API.
+    change({ createdFrom: start.toISOString(), createdTo: end.toISOString() });
   };
   return (
     <div className="orders-workspace orders-list-workspace">
@@ -132,22 +153,32 @@ export function OrdersPage() {
               }
             />
           </label>
+          <Button onClick={() => selectPeriod('today')}>今天</Button>
+          <Button onClick={() => selectPeriod('week')}>本周</Button>
           <Button onClick={() => setParams({})}>重置</Button>
           <Button icon={<ReloadOutlined />} onClick={refresh} loading={loading}>
             刷新
           </Button>
         </Space>
-        {error && <RequestError error={error} retry={refresh} />}
+        {dateError && (
+          <Alert
+            type="error"
+            showIcon
+            title={dateError}
+            style={{ marginBottom: 16 }}
+          />
+        )}
+        {error && !dateError && <RequestError error={error} retry={refresh} />}
         <Table
           rowKey="id"
           loading={loading}
-          dataSource={data?.list ?? []}
+          dataSource={error || dateError ? [] : (data?.list ?? [])}
           scroll={{ x: 800 }}
           locale={{ emptyText: '暂无符合条件的订单' }}
           pagination={{
             current: data?.page ?? 1,
             pageSize: data?.pageSize ?? 10,
-            total: data?.total ?? 0,
+            total: error || dateError ? 0 : (data?.total ?? 0),
             showSizeChanger: true,
             pageSizeOptions: [10, 20, 50, 100],
             showTotal: (t) => '共 ' + t + ' 个订单',

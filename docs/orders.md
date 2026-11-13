@@ -26,6 +26,8 @@ POST /api/orders：{ idempotencyKey(UUID), customerName(1–80), phone(5–32，
 
 GET /api/orders：page=1、pageSize=10（上限100）、search（订单号/客户姓名，最多100）、status、createdFrom/createdTo（ISO8601），createdAt desc/id desc。返回 {list,total,page,pageSize}，列表仅基础摘要，详细客户地址在详情中。
 
+列表日期操作：保留开始/结束日期，新增“今天”“本周”快捷按钮；按浏览器本地日历计算，今天 00:00:00.000 至 23:59:59.999，本周为周一至周日。选中日期转换成明确的 ISO 时间发送到已有接口，起止边界均包含，可仅传一侧。与搜索、状态按 AND 组合，列表和总数共用归属条件；筛选回第 1 页，URL、刷新、浏览器历史和实时刷新保留条件。非法日期或开始晚于结束时前端就地提示并阻止请求；后端已有 DTO 与区间检查继续生效。前端回归见 `frontend/e2e/order-date-filters.spec.ts`，权限条件回归见 `backend/test/orders.spec.ts`。无需数据库迁移。
+
 GET /api/orders/:id；PATCH /api/orders/:id/confirm、/complete（空 body）；PATCH /api/orders/:id/ship（carrier/trackingNo，各1–80）；PATCH /api/orders/:id/cancel（reason，1–500）。所有接口需 JWT，成功状态变更为 200；校验400、认证401、无权限403、越权/不存在404、库存/状态/幂等冲突409、副本写入503。
 
 ## 事务、幂等与并发
