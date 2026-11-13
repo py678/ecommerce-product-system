@@ -156,7 +156,20 @@ export function CategoriesPage() {
       dataIndex: 'productCount',
       key: 'productCount',
       width: 160,
-      render: (count: number) => <Tag>{count} 件商品</Tag>,
+      render: (count: number, item) =>
+        can(user, 'product:read') ? (
+          <Link
+            to={`/products?categoryId=${encodeURIComponent(item.id)}&page=1`}
+            aria-label={`查看${item.name}分类下的商品`}
+            title="查看该分类下有权限访问的商品"
+          >
+            <Tag color="cyan" style={{ cursor: 'pointer' }}>
+              {count} 件商品
+            </Tag>
+          </Link>
+        ) : (
+          <Tag>{count} 件商品</Tag>
+        ),
     },
     {
       title: '创建时间',
