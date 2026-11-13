@@ -1,5 +1,13 @@
 # 个人中心与凭证失效
 
+## 当前角色与权限（只读）
+
+个人中心在资料与安全设置之间展示“角色与权限”卡片，使用认证上下文已有的 role/roleName、permissions、dataScopes，不调用管理员权限目录接口，不新增接口或数据库字段。按模块展示实际授予的固定目录权限及每个操作的数据范围，不根据角色名称补全授权。
+
+OWN 展示“仅本人”，ALL 展示“全部数据”；商品和订单创建显示“创建后归本人”，分类为全局共享，其他非归属操作显示已授权。库存流水 OWN 按商品创建者快照判断；上下架复用修改商品权限。彻底删除账号另有系统 ADMIN 身份要求；已授权操作仍受业务状态、关联数据和系统角色保护限制。缺少资源范围时明确提示联系管理员，不推断为 ALL。权限为空时提示可使用个人中心。
+
+展示区没有角色选择、权限勾选或提交按钮，不改变邮箱/密码表单。角色或权限变更仍由既有管理员流程处理并撤销旧凭证。浏览器回归见 `frontend/e2e/profile-permissions.spec.ts`，覆盖混合 OWN/ALL、空授权和不按管理员名称推断权限。
+
 首版功能：查看公开账号资料，仅编辑唯一邮箱；独立修改密码表单；基于 JWT tokenVersion 撤销全部旧会话。不新增昵称、头像、缓存或 Redis；角色体系见后续 [RBAC](rbac.md)。个人中心的编辑范围不变，统一 Guard 的版本校验覆盖所有受保护接口。
 
 ## 数据与认证
@@ -22,22 +30,22 @@ ALTER TABLE "users" ADD COLUMN "token_version" INTEGER NOT NULL DEFAULT 0;
 
 ## 变更文件
 
-| 文件 | 作用 |
-| --- | --- |
-| backend/prisma/schema.prisma、prisma/migrations/20261103054143_user_token_version/migration.sql | 用户版本字段及数据保留迁移 |
-| backend/src/users/users.module.ts、users.controller.ts、users.service.ts、dto/user.dto.ts | 独立个人中心模块、DTO、邮箱唯一冲突、改密事务及限流 |
-| backend/src/auth/public-user.ts | 统一公开字段选择与安全映射 |
-| backend/src/auth/auth.service.ts、jwt-auth.guard.ts | 注册/登录签入版本及每请求版本校验 |
-| backend/src/app.module.ts | 注册个人中心模块 |
-| backend/scripts/sync/bridge.ts、scripts/sync.integration.test.ts | 新字段传播、旧事件防回退与双库回归 |
-| backend/test/users.spec.ts、users.e2e-spec.ts | 新增个人中心单元及 HTTP 安全测试 |
-| backend/test/auth.e2e-spec.ts、catalog.e2e-spec.ts、product-filters.e2e-spec.ts、upload.e2e-spec.ts | 既有 JWT 测试夹具更新版本声明 |
-| frontend/src/pages/ProfilePage.tsx、src/App.tsx、src/layouts/AdminLayout.tsx | 个人中心页面、路由与菜单 |
-| frontend/src/api/client.ts | 个人中心 API 与复用 401 失效逻辑 |
-| frontend/src/auth/session.ts、AuthProvider.tsx、auth-context.ts | 失效原因提示及资料更新后的账号状态 |
-| frontend/src/pages/AuthPage.tsx | 登录后允许返回个人中心 |
-| frontend/e2e/profile.spec.ts、profile-flow.spec.ts | 表单校验、200/401 会话清理及真实改密流程 |
-| docs/api.md、database.md、deployment.md、architecture.md、personal-center.md、README.md | 接口、数据、部署与交付说明 |
+| 文件                                                                                                | 作用                                                |
+| --------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
+| backend/prisma/schema.prisma、prisma/migrations/20261103054143_user_token_version/migration.sql     | 用户版本字段及数据保留迁移                          |
+| backend/src/users/users.module.ts、users.controller.ts、users.service.ts、dto/user.dto.ts           | 独立个人中心模块、DTO、邮箱唯一冲突、改密事务及限流 |
+| backend/src/auth/public-user.ts                                                                     | 统一公开字段选择与安全映射                          |
+| backend/src/auth/auth.service.ts、jwt-auth.guard.ts                                                 | 注册/登录签入版本及每请求版本校验                   |
+| backend/src/app.module.ts                                                                           | 注册个人中心模块                                    |
+| backend/scripts/sync/bridge.ts、scripts/sync.integration.test.ts                                    | 新字段传播、旧事件防回退与双库回归                  |
+| backend/test/users.spec.ts、users.e2e-spec.ts                                                       | 新增个人中心单元及 HTTP 安全测试                    |
+| backend/test/auth.e2e-spec.ts、catalog.e2e-spec.ts、product-filters.e2e-spec.ts、upload.e2e-spec.ts | 既有 JWT 测试夹具更新版本声明                       |
+| frontend/src/pages/ProfilePage.tsx、src/App.tsx、src/layouts/AdminLayout.tsx                        | 个人中心页面、路由与菜单                            |
+| frontend/src/api/client.ts                                                                          | 个人中心 API 与复用 401 失效逻辑                    |
+| frontend/src/auth/session.ts、AuthProvider.tsx、auth-context.ts                                     | 失效原因提示及资料更新后的账号状态                  |
+| frontend/src/pages/AuthPage.tsx                                                                     | 登录后允许返回个人中心                              |
+| frontend/e2e/profile.spec.ts、profile-flow.spec.ts                                                  | 表单校验、200/401 会话清理及真实改密流程            |
+| docs/api.md、database.md、deployment.md、architecture.md、personal-center.md、README.md             | 接口、数据、部署与交付说明                          |
 
 ## 验证
 

@@ -8,6 +8,7 @@ import { useAuth } from '../auth/useAuth';
 import { useResource } from '../hooks/useResource';
 import { RequestError } from '../components/PageFeedback';
 import { ManagementPageHeading } from '../components/ManagementPageHeading';
+import { ProfilePermissions } from '../components/ProfilePermissions';
 import { formatTime, passwordRules, trimInput } from '../utils/format';
 
 interface PasswordFields {
@@ -18,7 +19,7 @@ interface PasswordFields {
 
 export function ProfilePage() {
   const { message } = App.useApp();
-  const { updateUser } = useAuth();
+  const { user, updateUser } = useAuth();
   const [profile] = Form.useForm<{ email: string }>();
   const [password] = Form.useForm<PasswordFields>();
   const [saving, setSaving] = useState(false);
@@ -131,6 +132,7 @@ export function ProfilePage() {
             </>
           )}
         </Card>
+        <ProfilePermissions user={user} />
         <Card className="catalog-card profile-card" title="安全设置">
           <Alert
             type="info"
